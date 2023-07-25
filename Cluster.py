@@ -9,7 +9,6 @@ import requests
 import plotly.express as px
 
 
-# Added a small change.
 class Cluster:
     def __init__(
         self,
@@ -421,49 +420,6 @@ class Cluster:
             lambda row: _calc_mean_over_std(row), axis=1
         )
 
-        # Possibly TODO
-        self._calculate_cluster_certainty()
-
-    def _calculate_cluster_certainty(self):
-        """
-        Text here.
-
-        Parameters:
-            None
-
-        Returns:
-
-
-        """
-
-        """ 
-            Generally we have a high recall but low precision with the found clusters. Therefore we want to filter out the false positives based on cluster certainty. 
-            
-            A valid cluster is characterized by:
-            1. Multiple consecutive data points when the user is in the cluster. 
-            2. Cluster is visited multiple days; not just once
-            3. Mean divided by std of datapoints within a cluster > 0.5. 
-            4. Ratio between number of unique days visited and number of data points should be low.
-            5. The mean/std of the distances of each datapoint to its cluster centroid should be between 0.5 and 5. 
-            Optional: The distances of all points in a cluster to its centroid is approx. normally distributed with a slight right skew.
-            
-            
-            False positives examples:
-            1. Clusters with (almost) only cell tower points. These are definitely not valid clusters and should therefore
-            be removed. These clusters are characterized by a very high (unrealistic) density of datapoints. 
-            2. Clusters such as traffic lights. These clusters are characterized by few data points per day and few 
-            consecutive datapoints. 
-            3. If the date range is large (we thus have a lot of data), also clusters on moving routes. 
-        
-            Each of above criteria should yield a value between -1 and 1, where -1 is a negative contribution to the overall
-            certainty, and 1 is a positive contribution. The output of this function should be a value between [0, 1] where
-            1 = high certainty, and 0 = low certainty. 
-            
-            TODO: Note that this certainty metric might not be valid for different data sources -> test this. 
-            
-        """
-
-        # Filters
 
     def _add_OSM_to_clusters(self):
         """
