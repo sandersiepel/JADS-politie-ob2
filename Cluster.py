@@ -9,6 +9,7 @@ import requests
 import plotly.express as px
 
 
+# Added a small change.
 class Cluster:
     def __init__(
         self,
