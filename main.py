@@ -18,7 +18,7 @@ fraction = 1
 # For the heatmap visualization we specify a separate begin_date and end_date (must be between begin_date and end_date).
 # For readiness purposes, it it suggested to select between 2 and 14 days.
 heatmap_begin_date = "2023-07-15"
-heatmap_end_date = "2023-07-23"  # End date is INclusive! Choose a date that lies (preferably 2 days) before end_date to avoid errors. 
+heatmap_end_date = "2023-07-25"  # End date is INclusive! Choose a date that lies (preferably 2 days) before end_date to avoid errors. 
 
 
 def main():
