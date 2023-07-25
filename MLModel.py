@@ -33,8 +33,8 @@ class Predict:
         # Step 5. Evaluate model performance.
         self.evaluate_model()
 
-        # Step 6. Visualize the predictions in a heatmap.
-        self.visualize_predictions()
+        # Step 6. Visualize the predictions, the actual values, and the training values in heatmaps.
+        self.visualize()
 
     def load_data(self) -> pd.DataFrame:
         # If df is None, it is not set, hence we have to load it from xlsx.
@@ -109,7 +109,7 @@ class Predict:
         self.class_report = classification_report(self.y_test, self.predictions)
         print(f"Classification report: \n{self.class_report}")
 
-    def visualize_predictions(self) -> None:
+    def visualize(self) -> None:
         # Create a datetime index with 10-minute intervals.
         time_intervals = pd.date_range(
             start=self.test_start_date, end=self.model_date_end, freq="10T"
