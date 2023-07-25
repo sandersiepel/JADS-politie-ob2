@@ -8,4 +8,3 @@ plotly
 pyvis
 Requests
 scikit_learn
-xgboost

@@ -130,7 +130,7 @@ class Predict:
         HeatmapVisualizer(
             str(self.test_start_date.date()),
             str(self.model_date_end.date()),
-            self.df_original,
+            self.df_original, # Now we use the original dataframe (with time and location, 10 min intervals) to visualize the actual data.
             verbose=True,
             name="heatmap_actual",
         )
