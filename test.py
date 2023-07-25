@@ -17,8 +17,15 @@ HEATMAP_BEGIN_DATE = "2023-07-01"
 HEATMAP_END_DATE = "2023-07-17"  # End date is INclusive!
 
 
-df = DL.load_data(
-    DATA_SOURCE, BEGIN_DATE, END_DATE, FRACTION, HOURS_OFFSET, verbose=True
-)
+# df = DL.load_data(
+#     DATA_SOURCE, BEGIN_DATE, END_DATE, FRACTION, HOURS_OFFSET, verbose=True
+# )
 
-print(df.head())
+# print(df.head())
+
+def myfunc():
+    return (3, 5)
+
+a, b = myfunc()
+
+print(type(a), type(b))
