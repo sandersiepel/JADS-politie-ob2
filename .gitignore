@@ -1,1 +1,3 @@
 data/Records.json
+*.pyc
+*.pyo
