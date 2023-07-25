@@ -9,9 +9,9 @@ from sklearn import preprocessing
 
 
 class HeatmapVisualizer:
-    def __init__(self, begin_day, end_day, df, verbose, name):
+    def __init__(self, begin_day: str, end_day: str, df: pd.DataFrame, name: str, verbose: bool = True) -> None:
         """TODO: add docstring!
-
+ 
         df is a pd.DataFrame with "time" column (10-minute intervals) and "location" column (string labels of locations).
 
         """
@@ -40,7 +40,7 @@ class HeatmapVisualizer:
         self.calc_parameters()
         self.make_plot()
 
-    def validate_input(self, begin_day, end_day, df):
+    def validate_input(self, begin_day: str, end_day: str, df: pd.DataFrame) -> None:
         """Function that checks if the user's input satisfies all criteria. Officially there are more criteria, but these are the most important ones."""
         try:
             # Check if both begin_day and end_day are of the right type (str).
@@ -85,7 +85,7 @@ class HeatmapVisualizer:
 
         # TODO: Check if the intervals are correct.
 
-    def make_plot(self):
+    def make_plot(self) -> None:
         """Main function that is automatically ran upon initializing an instance of the HeatmapVisualizer class. This function adds everything together."""
         self.fig, self.ax = plt.subplots(figsize=(16, self.fig_height))
         self.set_y_ticks()
@@ -108,7 +108,7 @@ class HeatmapVisualizer:
             f"Message (heatmap visualizer): Succesfully downloaded heatmap to output/{self.name}.png."
         )
 
-    def calc_parameters(self):
+    def calc_parameters(self) -> None:
         """This function calculates all the parameters that are required for this visualization."""
         self.run_label_encoder()
         self.n_per_day = 144  # TODO: calculate this.
@@ -124,19 +124,22 @@ class HeatmapVisualizer:
         self.original_data = self.df.location.values.reshape(
             self.n_days, self.n_per_day
         )  # Keep version of original dataset
+
         res, ind = np.unique(self.original_data.flatten(), return_index=True)
         self.locations = self.le.inverse_transform(
             res[np.argsort(ind)]
         )  # A list of the discrete locations that are found in sub_df, in their respective order.
+
         self.n_locations = len(
             self.locations
         )  # The number of unique locations that are in sub_df.
+
         self.data = self.calc_input_data()
         self.y_axis_labels = self.make_y_axis_labels()
         self.cmap = self.make_cmap()
         self.boundaryNorm = self.make_boundaryNorm()
 
-    def run_label_encoder(self):
+    def run_label_encoder(self) -> None:
         """Our labels are, initially, strings of locations. For our visualization to work, we need integers. Therefore, we transform them with a LabelEncoder to integers."""
         # Check if df.locations is set and is integers. If not integers, use transformation
         self.le = preprocessing.LabelEncoder()
@@ -146,7 +149,7 @@ class HeatmapVisualizer:
             # We need to transform self.df
             self.df.location = self.le.transform(self.df.location)
 
-    def make_y_axis_labels(self):
+    def make_y_axis_labels(self) -> list:
         """Here we calculate which dates are included in our dataset and we add the weekday to it. These serve as our y-axis labels that we set in self.set_y_ticks()."""
         days = pd.DataFrame(self.df.index.strftime("%m/%d/%Y").unique())
         days.time = pd.to_datetime(days.time)
@@ -163,7 +166,7 @@ class HeatmapVisualizer:
             )
         )
 
-    def calc_input_data(self):
+    def calc_input_data(self) -> None:
         """We have to transform the input data so that the class labels (integers) correspond to an ordered version of the labels.
         This is necessary to ensure that the labels correspond to the cmap (which uses the ordered values to assign colors).
         """
@@ -180,7 +183,7 @@ class HeatmapVisualizer:
             self.n_days, self.n_per_day
         )
 
-    def make_cmap(self):
+    def make_cmap(self) -> ListedColormap:
         """Make the colormap based on a pre-defined color scheme from matplotlib (in this case, the pastel1 scheme)."""
         color_list = [
             "#a6cee3",
@@ -238,7 +241,7 @@ class HeatmapVisualizer:
         # ]  # These are the so called "kelly colors of maximum contrast"
         return ListedColormap(color_list[: self.n_locations])
 
-    def make_boundaryNorm(self):
+    def make_boundaryNorm(self) -> BoundaryNorm:
         """BoundaryNorm is used to specify the boundaries for each class and its colors. We use this to make sure each class (i.e., location) is represented by one color.
         For each class (which is an integer), the bound should be [class-0.5, class+0.5] so that it always includes the class value.
         """
@@ -254,7 +257,7 @@ class HeatmapVisualizer:
 
         return BoundaryNorm(self.bounds, self.cmap.N)
 
-    def set_y_ticks(self):
+    def set_y_ticks(self) -> None:
         """Set the y-axis ticks, i.e., the days of the week and the corresponding dates."""
         y_ticks = (
             np.arange(self.n_days) + 0.5
@@ -262,7 +265,7 @@ class HeatmapVisualizer:
         self.ax.set_yticks(y_ticks)
         self.ax.set_yticklabels(self.y_axis_labels)  # Labels are the days of the week
 
-    def set_x_ticks(self):
+    def set_x_ticks(self) -> None:
         """Set the x-axis ticks for the time values."""
         x_ticks = np.arange(
             0, self.n_per_day, (self.n_per_day / 24)
@@ -282,7 +285,7 @@ class HeatmapVisualizer:
             x_tick_labels, rotation=90
         )  # Rotate x-axis labels by 90 degrees for better readability.
 
-    def add_grid(self):
+    def add_grid(self) -> None:
         """We disable the default grid (since its position is not flexible) and, instead, add hlines and vlines to replace the grid."""
         # TODO: make this flexible based on the number of intervals per day (default=144, aka 10 minutes).
         self.ax.grid(False)  # Disable default grid.
@@ -293,7 +296,7 @@ class HeatmapVisualizer:
             np.arange(0.5, 144, 6), 0, self.n_days, colors="white", linewidths=0.5
         )
 
-    def add_colorbar(self):
+    def add_colorbar(self) -> None:
         """This function adds the colorbar to the right of the visualization."""
         self.cbar = plt.colorbar(self.im, ax=self.ax, aspect=20, ticks=self.bounds)
         self.cbar.ax.get_yaxis().set_ticks([])

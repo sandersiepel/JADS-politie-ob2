@@ -52,8 +52,9 @@ class Predict:
 
         self.validate_data()
         self.filter_data()
-        self.df_original = self.df.copy()
+        self.df_original = self.df.copy() # Make a copy of the original data so that we can compare the predictions with the original data (via heatmaps).
 
+        # We need to transform our string representations of locations to integers, for the ML models to work. 
         self.le = preprocessing.LabelEncoder()
         self.df.location = self.le.fit_transform(self.df.location)
 
@@ -93,8 +94,13 @@ class Predict:
 
     def run_model(self) -> None:
         self.model = RandomForestClassifier()
+
+        print(f"Training model with {len(self.X_train)} data points from {self.model_date_start} until {self.train_end_date}.")
+
         self.model.fit(self.X_train, self.y_train)
         self.predictions = self.model.predict(self.X_test)
+
+        print(f"Predicting {len(self.X_test)} data points from {self.test_start_date} until {self.model_date_end}.")
 
     def evaluate_model(self) -> None:
         self.model_accuracy = accuracy_score(self.y_test, self.predictions)
@@ -122,7 +128,6 @@ class Predict:
             str(self.test_start_date.date()),
             str(self.model_date_end.date()),
             df_predictions,
-            verbose=True,
             name="heatmap_predicted",
         )
 
@@ -131,14 +136,21 @@ class Predict:
             str(self.test_start_date.date()),
             str(self.model_date_end.date()),
             self.df_original, # Now we use the original dataframe (with time and location, 10 min intervals) to visualize the actual data.
-            verbose=True,
             name="heatmap_actual",
+        )
+
+        # And lastly, visualize the training data as well as heatmap_training.png.
+        HeatmapVisualizer(
+            str(self.model_date_start.date()),
+            str(self.train_end_date.date()),
+            self.df_original, # Now we use the original dataframe (with time and location, 10 min intervals) to visualize the actual data.
+            name="heatmap_training",
         )
 
 
 p = Predict(
     df=None, # Choose df = None if you want to load the dataframe from resampled_df_10_min.xlsx.
-    model_date_start=pd.to_datetime("2023-06-21 00:00:00"),  #  + pd.Timedelta(hours=5)
-    model_date_end=pd.to_datetime("2023-07-25 23:50:00"),
-    num_last_days_for_testing = 2
+    model_date_start=pd.to_datetime("2023-07-01 00:00:00"),
+    model_date_end=pd.to_datetime("2023-07-18 23:50:00"),
+    num_last_days_for_testing = 7
 )
