@@ -9,11 +9,12 @@ import sklearn.exceptions
 warnings.filterwarnings("ignore", category=sklearn.exceptions.UndefinedMetricWarning)
 
 class Predict:
-    def __init__(self, df: pd.DataFrame, model_date_start: str, model_date_end: str, num_last_days_for_testing: int) -> None:
+    def __init__(self, df: pd.DataFrame, model_date_start: str, model_date_end: str, num_last_days_for_testing: int, heatmaps:bool = True) -> None:
         self.df = df
         self.model_date_start = model_date_start
         self.model_date_end = model_date_end
         self.num_last_days_for_testing = num_last_days_for_testing
+        self.heatmaps = heatmaps
 
         self.main()
 
@@ -34,7 +35,8 @@ class Predict:
         self.evaluate_model()
 
         # Step 6. Visualize the predictions, the actual values, and the training values in heatmaps.
-        self.visualize()
+        if self.heatmaps:
+            self.visualize()
 
     def load_data(self) -> pd.DataFrame:
         # If df is None, it is not set, hence we have to load it from xlsx.
@@ -154,5 +156,6 @@ p = Predict(
     df=None, # Choose df = None if you want to load the dataframe from resampled_df_10_min.xlsx.
     model_date_start=pd.to_datetime("2022-05-25 00:00:00"),
     model_date_end=pd.to_datetime("2022-07-25 23:50:00"),
-    num_last_days_for_testing = 7
+    num_last_days_for_testing = 7,
+    heatmaps=True
 )
