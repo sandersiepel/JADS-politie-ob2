@@ -11,14 +11,14 @@ data_source = "google_maps"  # Can be either 'google_maps' or 'routined'.
 # which means that we need to offset it by 2 hours to make it GMT+2 (Dutch timezone). Value must be INT!
 hours_offset = 2 # Should be 0 for routined and 2 for google_maps. 
 # begin_date and end_date are used to filter the data for your analysis.
-begin_date = "2023-05-05"
-end_date = "2023-07-19"  # End date is INclusive!
+begin_date = "2022-01-01"
+end_date = "2022-07-25"  # End date is INclusive!
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
 fraction = 1
 # For the heatmap visualization we specify a separate begin_date and end_date (must be between begin_date and end_date).
 # For readiness purposes, it it suggested to select between 2 and 14 days.
-heatmap_begin_date = "2023-07-10"
-heatmap_end_date = "2023-07-19"  # End date is INclusive! Choose a date that lies (preferably 2 days) before end_date to avoid errors. 
+heatmap_begin_date = "2022-07-14"
+heatmap_end_date = "2022-07-24"  # End date is INclusive! Choose a date that lies (preferably 2 days) before end_date to avoid errors. 
 
 
 def main():
@@ -27,7 +27,7 @@ def main():
     # Step 1. Load data either from google maps or from routine-d data. Either way, df should contain the columns 'latitude',
     # 'longitude', 'and 'timestamp'.
     df = DL.load_data(
-        data_source, begin_date, end_date, fraction, hours_offset, verbose=True
+        data_source, begin_date, end_date, fraction, hours_offset, verbose=True,
     )
 
     # Step 2. Run clustering

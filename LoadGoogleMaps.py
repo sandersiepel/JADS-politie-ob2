@@ -49,15 +49,21 @@ class GMData:
             data_processed, columns=["latitude", "longitude", "timestamp", "source"]
         )
 
-        # Change dtype to datetime format.
-        # self.df.timestamp = pd.to_datetime(self.df.timestamp).dt.tz_localize(None)
+        # Four options:
+        self.df["timestamp"] = pd.to_datetime(
+            self.df["timestamp"], format="%Y-%m-%dT%H:%M:%S"
+        )
 
-        # self.df.timestamp = pd.to_datetime(self.df.timestamp).dt.strftime(
-        #     "%Y-%m-%dT%H:%M:%SZ"
+        # self.df["timestamp"] = pd.to_datetime(
+        #     self.df["timestamp"], format="%Y-%m-%dT%H:%M:%S.%fZ"
         # )
 
-        self.df["timestamp"] = pd.to_datetime(
-            self.df["timestamp"], format="%Y-%m-%dT%H:%M:%S.%f"
-        )
+        # self.df["timestamp"] = pd.to_datetime(
+        #     self.df["timestamp"], format="%Y-%m-%dT%H:%M:%SZ"
+        # )
+
+        # self.df["timestamp"] = pd.to_datetime(
+        #     self.df["timestamp"], format="%Y-%m-%dT%H:%M:%S.%f"
+        # )
 
         self.df["timestamp"] = self.df["timestamp"].dt.tz_localize(None)
