@@ -77,6 +77,8 @@ class Predict:
         self.df["hour"] = self.df["time"].dt.hour
         self.df["day"] = self.df["time"].dt.day
 
+        print(self.df.head(30))
+
     def make_train_test_split(self) -> None:
         # Define the end of training and the beginning of testing
         self.train_end_date = self.model_date_end - pd.Timedelta(days=self.num_last_days_for_testing)
@@ -150,7 +152,7 @@ class Predict:
 
 p = Predict(
     df=None, # Choose df = None if you want to load the dataframe from resampled_df_10_min.xlsx.
-    model_date_start=pd.to_datetime("2023-07-01 00:00:00"),
-    model_date_end=pd.to_datetime("2023-07-18 23:50:00"),
+    model_date_start=pd.to_datetime("2022-05-25 00:00:00"),
+    model_date_end=pd.to_datetime("2022-07-25 23:50:00"),
     num_last_days_for_testing = 7
 )
