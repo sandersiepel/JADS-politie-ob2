@@ -78,7 +78,6 @@ def main():
     )
 
     # Step 6. Train pycaret and find best model
-
     return None
 
 

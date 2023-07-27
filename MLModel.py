@@ -82,13 +82,21 @@ class Predict:
         print(self.df.head(30))
 
     def make_train_test_split(self) -> None:
-        # Define the end of training and the beginning of testing
-        self.train_end_date = self.model_date_end - pd.Timedelta(days=self.num_last_days_for_testing)
-        self.test_start_date = self.model_date_end - pd.Timedelta(days=self.num_last_days_for_testing) + pd.Timedelta(minutes=10)
+        # Define the end of training and the beginning of testing. For clarity, we define all four variables.
+
+        n_training_days = 30
+        n_testing_days = 7
+
+        # Starting at model_date_start, we take n_training_days of data.
+        # TODO: calculate number of loops we can do
+        self.train_start_date = self.model_date_start + pd.Timedelta(days=0) # Days should be loop parameter.
+        self.train_end_date = self.train_start_date + pd.Timedelta(days=n_training_days-1, hours=23, minutes=50) # We want to end on the last day at 23:50.
+        self.test_start_date = self.train_end_date + pd.Timedelta(minutes=10) # Start = 10 minutes after training set ends, i.e., begin is at 00:00. 
+        self.test_end_date = self.test_start_date + pd.Timedelta(days=n_testing_days)
 
         # Create masks to filter the data based on dates
-        train_mask = self.df['time'].between(self.model_date_start, self.train_end_date)
-        test_mask = self.df['time'].between(self.test_start_date, self.model_date_end)
+        train_mask = self.df['time'].between(self.train_start_date, self.train_end_date)
+        test_mask = self.df['time'].between(self.test_start_date, self.test_end_date)
 
         # Split the data into train and test sets
         self.X_train = self.df.loc[train_mask, ["weekday", "hour", "day"]]
