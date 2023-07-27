@@ -79,8 +79,6 @@ class Predict:
         self.df["hour"] = self.df["time"].dt.hour
         self.df["day"] = self.df["time"].dt.day
 
-        print(self.df.head(30))
-
     def make_train_test_split(self) -> None:
         # Define the end of training and the beginning of testing. For clarity, we define all four variables.
 
@@ -92,7 +90,7 @@ class Predict:
         self.train_start_date = self.model_date_start + pd.Timedelta(days=0) # Days should be loop parameter.
         self.train_end_date = self.train_start_date + pd.Timedelta(days=n_training_days-1, hours=23, minutes=50) # We want to end on the last day at 23:50.
         self.test_start_date = self.train_end_date + pd.Timedelta(minutes=10) # Start = 10 minutes after training set ends, i.e., begin is at 00:00. 
-        self.test_end_date = self.test_start_date + pd.Timedelta(days=n_testing_days)
+        self.test_end_date = self.test_start_date + pd.Timedelta(days=n_testing_days-1, hours=23, minutes=50)
 
         # Create masks to filter the data based on dates
         train_mask = self.df['time'].between(self.train_start_date, self.train_end_date)
@@ -107,12 +105,12 @@ class Predict:
     def run_model(self) -> None:
         self.model = RandomForestClassifier()
 
-        print(f"Training model with {len(self.X_train)} data points from {self.model_date_start} until {self.train_end_date}.")
+        print(f"Training model with {len(self.X_train)} data points from {self.train_start_date} until {self.train_end_date}.")
 
         self.model.fit(self.X_train, self.y_train)
         self.predictions = self.model.predict(self.X_test)
 
-        print(f"Predicting {len(self.X_test)} data points from {self.test_start_date} until {self.model_date_end}.")
+        print(f"Predicting {len(self.X_test)} data points from {self.test_start_date} until {self.test_end_date}.")
 
     def evaluate_model(self) -> None:
         self.model_accuracy = accuracy_score(self.y_test, self.predictions)
@@ -124,7 +122,7 @@ class Predict:
     def visualize(self) -> None:
         # Create a datetime index with 10-minute intervals.
         time_intervals = pd.date_range(
-            start=self.test_start_date, end=self.model_date_end, freq="10T"
+            start=self.test_start_date, end=self.test_end_date, freq="10T"
         )
 
         # Create a DataFrame with the 'time' column and the 'location' column that holds the predicted locations (strings).
@@ -138,7 +136,7 @@ class Predict:
         # Visualize the predictions in a heatmap and save it as heatmap_predicted.png.
         HeatmapVisualizer(
             str(self.test_start_date.date()),
-            str(self.model_date_end.date()),
+            str(self.test_end_date.date()),
             df_predictions,
             name="heatmap_predicted",
         )
@@ -146,14 +144,14 @@ class Predict:
         # And also visualize the actual values in a heatmap named heatmap_actual.png
         HeatmapVisualizer(
             str(self.test_start_date.date()),
-            str(self.model_date_end.date()),
+            str(self.test_end_date.date()),
             self.df_original, # Now we use the original dataframe (with time and location, 10 min intervals) to visualize the actual data.
             name="heatmap_actual",
         )
 
         # And lastly, visualize the training data as well as heatmap_training.png.
         HeatmapVisualizer(
-            str(self.model_date_start.date()),
+            str(self.train_start_date.date()),
             str(self.train_end_date.date()),
             self.df_original, # Now we use the original dataframe (with time and location, 10 min intervals) to visualize the actual data.
             name="heatmap_training",
@@ -165,5 +163,5 @@ p = Predict(
     model_date_start=pd.to_datetime("2022-05-25 00:00:00"),
     model_date_end=pd.to_datetime("2022-07-25 23:50:00"),
     num_last_days_for_testing = 7,
-    heatmaps=True
+    heatmaps=False
 )
