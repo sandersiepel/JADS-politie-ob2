@@ -9,12 +9,16 @@ import sklearn.exceptions
 warnings.filterwarnings("ignore", category=sklearn.exceptions.UndefinedMetricWarning)
 
 class Predict:
-    def __init__(self, df: pd.DataFrame, model_date_start: str, model_date_end: str, num_last_days_for_testing: int, heatmaps:bool = True) -> None:
+    def __init__(self, df: pd.DataFrame, model_date_start: str, model_date_end: str, heatmaps:bool = True) -> None:
         self.df = df
         self.model_date_start = model_date_start
         self.model_date_end = model_date_end
-        self.num_last_days_for_testing = num_last_days_for_testing
         self.heatmaps = heatmaps
+
+        self.n_training_days = 30
+        self.n_testing_days = 7
+        self.performance = {}
+        self.n_validation_loops = ((self.model_date_end - self.model_date_start).days + 1) - (self.n_training_days + self.n_testing_days)
 
         self.main()
 
@@ -25,18 +29,24 @@ class Predict:
         # Step 2. Make temporal features.
         self.make_temporal_features()
 
-        # Step 3. Make train/test split.
-        self.make_train_test_split()
+        # Here we enter the train/validation loop.
+        for i in range(self.n_validation_loops):
+            self.i = i
 
-        # Step 4. Run XGBoost model and make the predictions.
-        self.run_model()
+            # Step 3. Make train/test split. 
+            self.make_train_test_split(i)
 
-        # Step 5. Evaluate model performance.
-        self.evaluate_model()
+            # Step 4. Run XGBoost model and make the predictions.
+            self.run_model()
+
+            # Step 5. Evaluate model performance and store results in self.performance dict.
+            self.evaluate_model()
 
         # Step 6. Visualize the predictions, the actual values, and the training values in heatmaps.
         if self.heatmaps:
             self.visualize()
+
+        # print(f"Accuracy scores: {self.performance}")
 
     def load_data(self) -> pd.DataFrame:
         # If df is None, it is not set, hence we have to load it from xlsx.
@@ -79,18 +89,22 @@ class Predict:
         self.df["hour"] = self.df["time"].dt.hour
         self.df["day"] = self.df["time"].dt.day
 
-    def make_train_test_split(self) -> None:
-        # Define the end of training and the beginning of testing. For clarity, we define all four variables.
+    def make_train_test_split(self, i: int) -> None:
+        """ This function calculates the train/test begin and end dates, based on the parameter i (from the validation loop) and the number of training and testing days. 
 
-        n_training_days = 30
-        n_testing_days = 7
+        Parameters:
+            i (int): parameter from the validation loop. This value is between [0, self.n_validation_loops]. 
 
-        # Starting at model_date_start, we take n_training_days of data.
-        # TODO: calculate number of loops we can do
-        self.train_start_date = self.model_date_start + pd.Timedelta(days=0) # Days should be loop parameter.
-        self.train_end_date = self.train_start_date + pd.Timedelta(days=n_training_days-1, hours=23, minutes=50) # We want to end on the last day at 23:50.
+        Returns:
+            self
+
+        """
+
+        # Define the end of training and the beginning of testing. 
+        self.train_start_date = self.model_date_start + pd.Timedelta(days=i) # Days is the loop parameter, which goes from [0, self.n_validation_loops].
+        self.train_end_date = self.train_start_date + pd.Timedelta(days=self.n_training_days-1, hours=23, minutes=50) # We want to end on the last day at 23:50.
         self.test_start_date = self.train_end_date + pd.Timedelta(minutes=10) # Start = 10 minutes after training set ends, i.e., begin is at 00:00. 
-        self.test_end_date = self.test_start_date + pd.Timedelta(days=n_testing_days-1, hours=23, minutes=50)
+        self.test_end_date = self.test_start_date + pd.Timedelta(days=self.n_testing_days-1, hours=23, minutes=50)
 
         # Create masks to filter the data based on dates
         train_mask = self.df['time'].between(self.train_start_date, self.train_end_date)
@@ -113,11 +127,21 @@ class Predict:
         print(f"Predicting {len(self.X_test)} data points from {self.test_start_date} until {self.test_end_date}.")
 
     def evaluate_model(self) -> None:
-        self.model_accuracy = accuracy_score(self.y_test, self.predictions)
-        print("Accuracy: %.2f%%" % (self.model_accuracy * 100.0))
-
-        self.class_report = classification_report(self.y_test, self.predictions)
-        print(f"Classification report: \n{self.class_report}")
+        # self.model_accuracy = accuracy_score(self.y_test, self.predictions)
+        # self.class_report = classification_report(self.y_test, self.predictions)
+    
+        # Add evaluation metrics to self.performance
+        self.performance[self.i] = {
+            "meta":{
+                "train_start_date":self.train_start_date,
+                "train_end_date":self.train_end_date,
+                "test_start_date":self.test_start_date,
+                "test_end_date":self.test_end_date,
+            },
+            "performance_metrics":{
+                "acc":accuracy_score(self.y_test, self.predictions),
+            } 
+        }
 
     def visualize(self) -> None:
         # Create a datetime index with 10-minute intervals.
@@ -162,6 +186,6 @@ p = Predict(
     df=None, # Choose df = None if you want to load the dataframe from resampled_df_10_min.xlsx.
     model_date_start=pd.to_datetime("2022-05-25 00:00:00"),
     model_date_end=pd.to_datetime("2022-07-25 23:50:00"),
-    num_last_days_for_testing = 7,
-    heatmaps=False
+    heatmaps=False,
+
 )
