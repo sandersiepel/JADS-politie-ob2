@@ -99,6 +99,8 @@ class Predict:
         if "day" in self.model_features:
             self.df["day"] = self.df["time"].dt.day
 
+        print(self.df.head())
+
     def make_train_test_split(self, i: int) -> None:
         """ This function calculates the train/test begin and end dates, based on the parameter i (from the validation loop) and the number of training and testing days. 
 
@@ -204,11 +206,11 @@ class Predict:
 
 p = Predict(
     df=None, # Choose df = None if you want to load the dataframe from resampled_df_10_min.xlsx.
-    model_date_start=pd.to_datetime("2023-05-15 00:00:00"),
+    model_date_start=pd.to_datetime("2023-06-15 00:00:00"),
     model_date_end=pd.to_datetime("2023-07-20 23:50:00"),
     n_training_days=21,
     n_testing_days=7,
-    model_features=["weekday", "hour"], # All options are: "weekday", "day", "hour"
+    model_features=["weekday", "hour", "day"], # All options are: "weekday", "day", "hour"
     heatmaps=False,
 )
 
