@@ -6,6 +6,7 @@ from Visualisations import HeatmapVisualizer
 import sys
 import warnings
 import sklearn.exceptions
+
 warnings.filterwarnings("ignore", category=sklearn.exceptions.UndefinedMetricWarning)
 import numpy as np
 from datetime import datetime
@@ -84,9 +85,11 @@ class Predict:
 
         self.validate_data()
         self.filter_data()
-        self.df_original = self.df.copy() # Make a copy of the original data so that we can compare the predictions with the original data (via heatmaps).
+        self.df_original = (
+            self.df.copy()
+        )  # Make a copy of the original data so that we can compare the predictions with the original data (via heatmaps).
 
-        # We need to transform our string representations of locations to integers, for the ML models to work. 
+        # We need to transform our string representations of locations to integers, for the ML models to work.
         self.le = preprocessing.LabelEncoder()
         self.df.location = self.le.fit_transform(self.df.location)
 
@@ -100,9 +103,11 @@ class Predict:
             )
 
     def filter_data(self) -> None:
-        self.df[self.df['time'].between(self.model_date_start, self.model_date_end)]
+        self.df[self.df["time"].between(self.model_date_start, self.model_date_end)]
 
-        print(f"Message (ML filter): after filtering we have {len(self.df)} records, starting at {str(self.df.iloc[0].time)} and ending at {str(self.df.iloc[-1].time)}.")
+        print(
+            f"Message (ML filter): after filtering we have {len(self.df)} records, starting at {str(self.df.iloc[0].time)} and ending at {str(self.df.iloc[-1].time)}."
+        )
 
     def make_temporal_features(self) -> None:
         if "weekday" in self.model_features:
@@ -115,7 +120,7 @@ class Predict:
             self.df["day"] = self.df["time"].dt.day
 
     def make_train_test_split(self, i: int) -> None:
-        """ This function calculates the train/test begin and end dates, based on the parameter i (from the validation loop) and the number of training and testing days. 
+        """This function calculates the train/test begin and end dates, based on the parameter i (from the validation loop) and the number of training and testing days.
 
         Parameters:
             i (int): offset (in days) that shifts the window forwards in time. 
@@ -132,8 +137,8 @@ class Predict:
         self.test_end_date = self.test_start_date + pd.Timedelta(days=self.max_n_testing_days-1, hours=23, minutes=50) # Again, end on the last day at 23:50. 
 
         # Create masks to filter the data based on dates
-        train_mask = self.df['time'].between(self.train_start_date, self.train_end_date)
-        test_mask = self.df['time'].between(self.test_start_date, self.test_end_date)
+        train_mask = self.df["time"].between(self.train_start_date, self.train_end_date)
+        test_mask = self.df["time"].between(self.test_start_date, self.test_end_date)
 
         # Split the data into train and test sets
         self.X_train = self.df.loc[train_mask, self.model_features]
@@ -147,6 +152,7 @@ class Predict:
         self.predictions = self.model.predict(self.X_test)
 
     def evaluate_model(self) -> None:
+        # "Walk forward approach" -> https://medium.com/eatpredlove/time-series-cross-validation-a-walk-forward-approach-in-python-8534dd1db51a
         # Add meta data and evaluation metrics to self.performance.
         # First, for each day in self.n_testing_days, we calculate the performance and save it in a dict.
         performance_metrics_per_day = {}
@@ -157,15 +163,23 @@ class Predict:
         
             # And add them to a dictionary where the key is the day, increasing from 0 to self.n_testing_days.
             performance_metrics_per_day[d] = {
-                "acc":acc,
+                "acc": acc,
             }
 
         self.performance[self.ntd][self.validation_loop_index] = {
             "performance_metrics_per_day":performance_metrics_per_day,
         }
 
-    def visualize(self, test_start_date:datetime, test_end_date:datetime, train_start_date:datetime, train_end_date:datetime, 
-                  train_data: pd.DataFrame, test_data:pd.DataFrame, predictions:list) -> None:
+    def visualize(
+        self,
+        test_start_date: datetime,
+        test_end_date: datetime,
+        train_start_date: datetime,
+        train_end_date: datetime,
+        train_data: pd.DataFrame,
+        test_data: pd.DataFrame,
+        predictions: list,
+    ) -> None:
         # Create a datetime index with 10-minute intervals.
         time_intervals = pd.date_range(
             start=test_start_date, end=test_end_date, freq="10T"
@@ -191,7 +205,7 @@ class Predict:
         HeatmapVisualizer(
             str(test_start_date.date()),
             str(test_end_date.date()),
-            test_data, # Now we use the original dataframe (with time and location, 10 min intervals) to visualize the actual data.
+            test_data,  # Now we use the original dataframe (with time and location, 10 min intervals) to visualize the actual data.
             name="heatmap_actual",
         )
 
@@ -199,7 +213,7 @@ class Predict:
         HeatmapVisualizer(
             str(train_start_date.date()),
             str(train_end_date.date()),
-            train_data, # Now we use the original dataframe (with time and location, 10 min intervals) to visualize the actual data.
+            train_data,  # Now we use the original dataframe (with time and location, 10 min intervals) to visualize the actual data.
             name="heatmap_training",
         )
 
@@ -219,11 +233,11 @@ p = Predict(
 # p.df.location = p.le.inverse_transform(p.df.location)
 
 # p.visualize(
-#     test_start_date=selected_p["meta"]["test_start_date"], 
-#     test_end_date=selected_p["meta"]["test_end_date"], 
-#     train_start_date=selected_p["meta"]["train_start_date"], 
-#     train_end_date=selected_p["meta"]["train_end_date"], 
-#     train_data=p.df[p.df['time'].between(selected_p["meta"]["train_start_date"], selected_p["meta"]["train_end_date"])], 
+#     test_start_date=selected_p["meta"]["test_start_date"],
+#     test_end_date=selected_p["meta"]["test_end_date"],
+#     train_start_date=selected_p["meta"]["train_start_date"],
+#     train_end_date=selected_p["meta"]["train_end_date"],
+#     train_data=p.df[p.df['time'].between(selected_p["meta"]["train_start_date"], selected_p["meta"]["train_end_date"])],
 #     test_data=p.df[p.df['time'].between(selected_p["meta"]["test_start_date"], selected_p["meta"]["test_end_date"])],
 #     predictions=selected_p["predictions"]
 # )
