@@ -26,6 +26,7 @@ for i in range(min_n_training_days, max_n_training_days +1):
             val_data = res[i][y]
             accs.append(np.array(val_data['performance_metrics_per_day'][t_day]['acc']))
 
+        # Avoid ZeroDivisionError
         if sum(accs) > 0:
             new_res[f"training_day_{i}"][f"day_{t_day}"] = round(np.average(accs), 3)
         else:

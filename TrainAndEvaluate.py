@@ -73,8 +73,8 @@ class TrainAndEvaluate:
         print("\nSaved model performance to output/model_performances.pkl")
 
     def make_dataset(self) -> pd.DataFrame:
-        # If df is None, it is not set, hence we have to load it from xlsx.
-        if self.df == None:
+        # If df is None, it is not set, hence we have to load it from xlsx. Normally, when this class is used in the main pipeline, the 10-minute-interval dataset is passed on as self.df. 
+        if not isinstance(self.df, pd.DataFrame):
             try:
                 self.df = pd.read_excel(
                     "output/resampled_df_10_min.xlsx", index_col=[0]
@@ -139,6 +139,8 @@ class TrainAndEvaluate:
         self.test_start_date = self.train_end_date + pd.Timedelta(minutes=10) # Start = 10 minutes after training set ends, i.e., begin is at 00:00. 
         self.test_end_date = self.test_start_date + pd.Timedelta(days=self.max_n_testing_days-1, hours=23, minutes=50) # Again, end on the last day at 23:50. 
 
+        # print(f"Split: train: {self.train_start_date}-{self.train_end_date}, test: {self.test_start_date}-{self.test_end_date}.")
+
         # Create masks to filter the data based on dates
         train_mask = self.df["time"].between(self.train_start_date, self.train_end_date)
         test_mask = self.df["time"].between(self.test_start_date, self.test_end_date)
@@ -159,10 +161,11 @@ class TrainAndEvaluate:
         # Add meta data and evaluation metrics to self.performance.
         # First, for each day in self.n_testing_days, we calculate the performance and save it in a dict.
         performance_metrics_per_day = {}
-        for d in range(self.min_n_testing_days, self.max_n_testing_days):
+        for d in range(self.min_n_testing_days-1, self.max_n_testing_days):
             this_day_predictions = self.predictions[d*144:(d+1)*144]
             this_day_actual_values = self.y_test[d*144:(d+1)*144]
             acc = accuracy_score(this_day_actual_values, this_day_predictions)
+            # print(f"Day: {(self.test_start_date + pd.Timedelta(days=d)).date()}. Length of this day predictions: {len(this_day_predictions)}, length of actual values: {len(this_day_actual_values)}. Acc: {acc}")
         
             # And add them to a dictionary where the key is the day, increasing from 0 to self.n_testing_days.
             performance_metrics_per_day[d] = {

@@ -13,7 +13,7 @@ data_source = "google_maps"  # Can be either 'google_maps' or 'routined'.
 hours_offset = 0 # Should be 0 for routined and 2 for google_maps. 
 # begin_date and end_date are used to filter the data for your analysis.
 begin_date = "2023-01-01"
-end_date = "2023-12-30"  # End date is INclusive! If the end_date exceeds your dataset, it will simply stop at the end of your dataset. 
+end_date = "2023-07-18"  # End date is INclusive! 
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
 fraction = 1
 # For the heatmap visualization we specify a separate begin_date and end_date (must be between begin_date and end_date).
@@ -23,7 +23,7 @@ heatmap_end_date = "2023-06-29"  # End date is INclusive! Choose a date that lie
 
 
 def main():
-    # Main function for running our pipeline.
+    # # Main function for running our pipeline.
 
     # Step 1. Load data either from google maps or from routine-d data. Either way, df should contain the columns 'latitude',
     # 'longitude', 'and 'timestamp'.
@@ -78,17 +78,17 @@ def main():
     # Step 5. Transform data (resample) to 10-minute intervals (required for subsequent modeling and visualizations).
     df = DT.resample_df(df)
 
-    # Step 6. Create and save heatmap visualization to output/heatmap.png.
-    HeatmapVisualizer(
-        heatmap_begin_date, heatmap_end_date, df, verbose=True, name="heatmap"
-    )
+    # # Step 6. Create and save heatmap visualization to output/heatmap.png.
+    # HeatmapVisualizer(
+    #     heatmap_begin_date, heatmap_end_date, df, verbose=True, name="heatmap"
+    # )
 
     # Step 7. Train and evaluate model to find performance.
     TrainAndEvaluate(
-        df=df, # Choose df = None if you want to load the dataframe from resampled_df_10_min.xlsx.
+        df=None, # Choose df = None if you want to load the dataframe from resampled_df_10_min.xlsx.
         model_date_start=pd.to_datetime(begin_date + " 00:00:00"),
         model_date_end=pd.to_datetime(end_date + " 23:50:00"),
-        n_training_days=(1, 21),
+        n_training_days=(1, 21), # These ranges are INclusive. 
         n_testing_days=(1, 14),
         model_features=["weekday", "hour", "day"], # All options are: "weekday", "day", "hour"
         heatmaps=False
