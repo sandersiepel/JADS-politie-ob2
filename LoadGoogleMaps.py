@@ -51,7 +51,7 @@ class GMData:
 
         # Four options:
         self.df["timestamp"] = pd.to_datetime(
-            self.df["timestamp"], format="ISO8601"
+            self.df["timestamp"], infer_datetime_format=True
         )  # , format="%Y-%m-%dT%H:%M:%S"
 
         # self.df["timestamp"] = pd.to_datetime(

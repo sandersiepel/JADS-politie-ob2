@@ -1,12 +1,7 @@
-import DataLoader as DL
-import DataTransformer as DT
-from LoadRoutinedData import RDData
-import pandas as pd
 import pickle
-import json
 import numpy as np
 from collections import defaultdict
-import sys
+import matplotlib.pyplot as plt
 
 min_n_training_days=1
 max_n_training_days=21
@@ -16,7 +11,6 @@ max_n_testing_days=14
 with open('model_performances.pkl', 'rb') as f:
     res = pickle.load(f)
 
-# print (json.dumps(res, indent=2, default=str))
 
 new_res = defaultdict(dict)
 for i in range(min_n_training_days, max_n_training_days +1):
@@ -32,12 +26,18 @@ for i in range(min_n_training_days, max_n_training_days +1):
             val_data = res[i][y]
             accs.append(np.array(val_data['performance_metrics_per_day'][t_day]['acc']))
 
-        new_res[f"training_day_{i}"][f"day_{t_day}"] = round(np.average(accs), 3)
+        if sum(accs) > 0:
+            new_res[f"training_day_{i}"][f"day_{t_day}"] = round(np.average(accs), 3)
+        else:
+            new_res[f"training_day_{i}"][f"day_{t_day}"] = 0
 
 
-import matplotlib.pyplot as plt
 
-def create_heatmap(data_dict):
+def visualize_model_performance(data_dict):
+    """ data_dict is a dict where the keys are "training_day_x", for each training day. Each key's value is again a dict with values
+    for "day_1", "day_2", up to "day_n" where n = max_n_testing_days. 
+    
+    """
     # Extract training day labels
     training_days = list(data_dict.keys())
     
@@ -48,17 +48,18 @@ def create_heatmap(data_dict):
     data_array = [[data_dict[training_day][day] for day in day_labels] for training_day in training_days]
     
     # Create the heatmap
-    fig, ax = plt.subplots(figsize=(10, 6))
+    _, ax = plt.subplots(figsize=(10, 6))
     heatmap = ax.pcolor(data_array, cmap='YlGnBu')
     
     # Add colorbar
-    cbar = plt.colorbar(heatmap)
+    plt.colorbar(heatmap)
     
     # Set axis labels and title
     ax.set_xticks(range(len(day_labels)))
     ax.set_xticklabels(day_labels)
     ax.set_yticks(range(len(training_days)))
     ax.set_yticklabels(training_days)
+
     plt.xlabel('Days into the future')
     plt.ylabel('Number of days used for training')
     plt.title('Accuracy scores for predicting future locations')
@@ -66,4 +67,4 @@ def create_heatmap(data_dict):
     # Show the plot
     plt.show()
 
-create_heatmap(new_res)
+visualize_model_performance(new_res)

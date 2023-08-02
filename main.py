@@ -3,16 +3,17 @@ import DataTransformer as DT
 from Cluster import Cluster
 from MarkovChain import MarkovChain
 from Visualisations import HeatmapVisualizer
-
+from TrainAndEvaluate import TrainAndEvaluate
+import pandas as pd
 
 # Initialize parameters.
-data_source = "routined"  # Can be either 'google_maps' or 'routined'.
+data_source = "google_maps"  # Can be either 'google_maps' or 'routined'.
 # hours_offset is used to offset the timestamps to account for timezone differences. For google maps, timestamp comes in GMT+0
 # which means that we need to offset it by 2 hours to make it GMT+2 (Dutch timezone). Value must be INT!
 hours_offset = 0 # Should be 0 for routined and 2 for google_maps. 
 # begin_date and end_date are used to filter the data for your analysis.
 begin_date = "2023-01-01"
-end_date = "2023-12-30"  # End date is INclusive!
+end_date = "2023-12-30"  # End date is INclusive! If the end_date exceeds your dataset, it will simply stop at the end of your dataset. 
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
 fraction = 1
 # For the heatmap visualization we specify a separate begin_date and end_date (must be between begin_date and end_date).
@@ -80,6 +81,17 @@ def main():
     # Step 6. Create and save heatmap visualization to output/heatmap.png.
     HeatmapVisualizer(
         heatmap_begin_date, heatmap_end_date, df, verbose=True, name="heatmap"
+    )
+
+    # Step 7. Train and evaluate model to find performance.
+    TrainAndEvaluate(
+        df=df, # Choose df = None if you want to load the dataframe from resampled_df_10_min.xlsx.
+        model_date_start=pd.to_datetime(begin_date + " 00:00:00"),
+        model_date_end=pd.to_datetime(end_date + " 23:50:00"),
+        n_training_days=(1, 21),
+        n_testing_days=(1, 14),
+        model_features=["weekday", "hour", "day"], # All options are: "weekday", "day", "hour"
+        heatmaps=False
     )
 
     # Step 6. Train pycaret and find best model
