@@ -35,9 +35,7 @@ class TrainAndEvaluate:
 
         # Based on the entire window size (training + testing days), we calculate how often we can shift the window forward within the dataset
         self.n_validation_loops = ((self.model_date_end - self.model_date_start).days + 1) - (self.max_n_training_days + self.max_n_testing_days) + 1
-        print(f"Message (ML evaluation): Performing {self.n_validation_loops+1} evaluation loops for {self.max_n_training_days-self.min_n_training_days} training set sizes.")
-
-        self.main()
+        print(f"Message (ML evaluation): Performing {self.n_validation_loops+1} evaluation loops for {self.max_n_training_days-self.min_n_training_days} different training set sizes.")
 
     def main(self):
         # Step 1. Load dataset.
@@ -71,6 +69,8 @@ class TrainAndEvaluate:
             pickle.dump(self.performance, f)
 
         print("\nSaved model performance to output/model_performances.pkl")
+
+        return self.performance
 
     def make_dataset(self) -> pd.DataFrame:
         # If df is None, it is not set, hence we have to load it from xlsx. Normally, when this class is used in the main pipeline, the 10-minute-interval dataset is passed on as self.df. 
@@ -109,7 +109,7 @@ class TrainAndEvaluate:
         self.df[self.df["time"].between(self.model_date_start, self.model_date_end)]
 
         print(
-            f"Message (ML filter): after filtering we have {len(self.df)} records, starting at {str(self.df.iloc[0].time)} and ending at {str(self.df.iloc[-1].time)}."
+            f"Message (ML filter): after filtering we have {len(self.df)} records (with 10-minute intervals), starting at {str(self.df.iloc[0].time)} and ending at {str(self.df.iloc[-1].time)}."
         )
 
     def make_temporal_features(self) -> None:
