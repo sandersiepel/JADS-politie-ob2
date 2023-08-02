@@ -35,7 +35,7 @@ class TrainAndEvaluate:
 
         # Based on the entire window size (training + testing days), we calculate how often we can shift the window forward within the dataset
         self.n_validation_loops = ((self.model_date_end - self.model_date_start).days + 1) - (self.max_n_training_days + self.max_n_testing_days) + 1
-        print(f"Message (ML evaluation): Performing {self.n_validation_loops+1} evaluation loops for {self.max_n_training_days-self.min_n_training_days} different training set sizes.")
+        print(f"Message (ML evaluation): Starting model evaluation with sliding window. Performing {self.n_validation_loops+1} evaluation loops for {self.max_n_training_days-self.min_n_training_days} different training set sizes.")
 
     def main(self):
         # Step 1. Load dataset.
@@ -45,11 +45,11 @@ class TrainAndEvaluate:
         self.make_temporal_features()
 
         # For each number of training days that we want to test, we train the models, predict the days (up until n_testing_days), and evaluate the models
-        for ntd in tqdm(range(self.min_n_training_days, self.max_n_training_days+1), desc=" Training loop", position=1):
+        for ntd in tqdm(range(self.min_n_training_days, self.max_n_training_days+1), desc="  Training loop", position=1):
             self.ntd = ntd
 
             # Here we enter the train/validation loop.
-            for i in tqdm(range(self.n_validation_loops), desc=" Validation loop", position=0, leave=False):
+            for i in tqdm(range(self.n_validation_loops), desc="  Validation loop", position=0, leave=False):
                 self.validation_loop_index = i
 
                 # Step 3. Make train/test split. We need the loop index to offset the days (for making the training/testing sets).
