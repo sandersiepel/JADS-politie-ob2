@@ -6,10 +6,10 @@ from Visualisations import HeatmapVisualizer
 
 
 # Initialize parameters.
-data_source = "google_maps"  # Can be either 'google_maps' or 'routined'.
+data_source = "routined"  # Can be either 'google_maps' or 'routined'.
 # hours_offset is used to offset the timestamps to account for timezone differences. For google maps, timestamp comes in GMT+0
 # which means that we need to offset it by 2 hours to make it GMT+2 (Dutch timezone). Value must be INT!
-hours_offset = 2 # Should be 0 for routined and 2 for google_maps. 
+hours_offset = 0 # Should be 0 for routined and 2 for google_maps. 
 # begin_date and end_date are used to filter the data for your analysis.
 begin_date = "2023-01-01"
 end_date = "2023-12-30"  # End date is INclusive!
@@ -17,8 +17,8 @@ end_date = "2023-12-30"  # End date is INclusive!
 fraction = 1
 # For the heatmap visualization we specify a separate begin_date and end_date (must be between begin_date and end_date).
 # For readiness purposes, it it suggested to select between 2 and 14 days.
-heatmap_begin_date = "2023-07-10"
-heatmap_end_date = "2023-07-20"  # End date is INclusive! Choose a date that lies (preferably 2 days) before end_date to avoid errors. 
+heatmap_begin_date = "2023-06-20"
+heatmap_end_date = "2023-06-29"  # End date is INclusive! Choose a date that lies (preferably 2 days) before end_date to avoid errors. 
 
 
 def main():
@@ -37,18 +37,18 @@ def main():
         verbose=True,  # Do we want to see print statements?
         pre_filter=True,  # Apply filters to the data before the clustering (such as removing moving points)
         post_filter=True,  # Apply filters to the data/clusters after the clustering (such as deleting homogeneous clusters)
-        filter_moving=False,  # Do we want to delete the data points where the subject was moving?
+        filter_moving=True,  # Do we want to delete the data points where the subject was moving?
         centroid_k=10,  # Number of nearest neighbors to consider for density calculation (for cluster centroids)
-        min_unique_days=2,  # If post_filter = True, then delete all clusters that have been visited on less than min_unique_days days.
+        min_unique_days=1,  # If post_filter = True, then delete all clusters that have been visited on less than min_unique_days days.
     )
 
     # Then we run the clustering and visualisation
     df = (
         c.run_clustering(
-            min_samples=100,  # The number of samples in a neighborhood for a point to be considered as a core point
-            eps=0.02,  # The maximum distance between two samples for one to be considered as in the neighborhood of the other. 0.01 = 10m
+            min_samples=150,  # The number of samples in a neighborhood for a point to be considered as a core point
+            eps=0.01,  # The maximum distance between two samples for one to be considered as in the neighborhood of the other. 0.01 = 10m
             algorithm="dbscan",  # Choose either 'dbscan' or 'hdbscan'. If 'hdbscan', only min_samples is required.
-            min_cluster_size=30,  # Param of HDBSCAN: the minimum size a final cluster can be. The higher this is, the bigger your clusters will be
+            # min_cluster_size=50,  # Param of HDBSCAN: the minimum size a final cluster can be. The higher this is, the bigger your clusters will be
         )
         .plot_clusters(
             filter_noise=False,  # Remove the -1 labels (i.e., noise) before plotting the clusters

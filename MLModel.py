@@ -1,59 +1,74 @@
 from sklearn import preprocessing
 import pandas as pd
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.metrics import accuracy_score
 from sklearn.ensemble import RandomForestClassifier
 from Visualisations import HeatmapVisualizer
 import sys
 import warnings
 import sklearn.exceptions
 warnings.filterwarnings("ignore", category=sklearn.exceptions.UndefinedMetricWarning)
-import json
 import numpy as np
 from datetime import datetime
+from collections import defaultdict
+import pickle
+from tqdm import tqdm
 
 
 class Predict:
-    def __init__(self, df: pd.DataFrame, model_date_start: str, model_date_end: str, n_training_days:int, n_testing_days:int, model_features:list, heatmaps:bool = True) -> None:
+    def __init__(self, df: pd.DataFrame, model_date_start: str, model_date_end: str, n_training_days:tuple, n_testing_days:tuple, model_features:list, heatmaps:bool = True) -> None:
         self.df = df
         self.model_date_start = model_date_start
         self.model_date_end = model_date_end
         self.heatmaps = heatmaps
         self.model_features = model_features
 
-        self.n_training_days = n_training_days
-        self.n_testing_days = n_testing_days
-        self.performance = {}
-        self.n_validation_loops = ((self.model_date_end - self.model_date_start).days + 1) - (self.n_training_days + self.n_testing_days)
+        # n_training_days is a tuple with min_n_training_days and max_n_training_days
+        self.min_n_training_days, self.max_n_training_days = n_training_days 
+        self.min_n_testing_days, self.max_n_testing_days = n_testing_days
+
+        # The self.performance dict contains, for each training size and each validation loop, the accuracy scores for all the days that were predicted (this has length)
+        self.performance = defaultdict(dict)
+
+        # Based on the window size (training + testing days), we calculate how often we can shift the window forward within the dataset
+        self.n_validation_loops = ((self.model_date_end - self.model_date_start).days + 1) - (self.max_n_training_days + self.max_n_testing_days) + 1
+        print(f"Message (ML evaluation): Performing {self.n_validation_loops+1} evaluation loops for {self.max_n_training_days-self.min_n_training_days} training set sizes.")
 
         self.main()
 
     def main(self):
         # Step 1. Load dataset.
-        self.load_data()
+        self.make_dataset()
 
         # Step 2. Make temporal features.
         self.make_temporal_features()
 
-        # Here we enter the train/validation loop.
-        for i in range(self.n_validation_loops):
-            self.i = i
+        # For each number of training days that we want to test, we train the models, predict the days (up until n_testing_days), and evaluate the models
+        for ntd in tqdm(range(self.min_n_training_days, self.max_n_training_days+1), desc=" Training loop", position=1):
+            self.ntd = ntd
 
-            # Step 3. Make train/test split. 
-            self.make_train_test_split(i)
+            # Here we enter the train/validation loop.
+            for i in tqdm(range(self.n_validation_loops), desc=" Validation loop", position=0, leave=False):
+                self.validation_loop_index = i
 
-            # Step 4. Run XGBoost model and make the predictions.
-            self.run_model()
+                # Step 3. Make train/test split. We need the loop index to offset the days (for making the training/testing sets).
+                self.make_train_test_split(self.validation_loop_index)
 
-            # Step 5. Evaluate model performance and store results in self.performance dict.
-            self.evaluate_model()
+                # Step 4. Run XGBoost model and make the predictions.
+                self.run_model()
+
+                # Step 5. Evaluate model performance and store results in self.performance dict.
+                self.evaluate_model()
 
         # Step 6. Visualize the predictions, the actual values, and the training values in heatmaps.
         if self.heatmaps:
             self.visualize()
 
-        print (json.dumps(self.performance, indent=2, default=str))
+        with open('model_performances.pkl', 'wb') as f:
+            pickle.dump(self.performance, f)
 
-    def load_data(self) -> pd.DataFrame:
+        print("Saved model performance to model_performances.pkl")
+
+    def make_dataset(self) -> pd.DataFrame:
         # If df is None, it is not set, hence we have to load it from xlsx.
         if self.df == None:
             try:
@@ -99,13 +114,11 @@ class Predict:
         if "day" in self.model_features:
             self.df["day"] = self.df["time"].dt.day
 
-        print(self.df.head())
-
     def make_train_test_split(self, i: int) -> None:
         """ This function calculates the train/test begin and end dates, based on the parameter i (from the validation loop) and the number of training and testing days. 
 
         Parameters:
-            i (int): parameter from the validation loop. This value is between [0, self.n_validation_loops]. 
+            i (int): offset (in days) that shifts the window forwards in time. 
 
         Returns:
             self
@@ -114,9 +127,9 @@ class Predict:
 
         # Define the end of training and the beginning of testing. 
         self.train_start_date = self.model_date_start + pd.Timedelta(days=i) # Days is the loop parameter, which goes from [0, self.n_validation_loops].
-        self.train_end_date = self.train_start_date + pd.Timedelta(days=self.n_training_days-1, hours=23, minutes=50) # We want to end on the last day at 23:50.
+        self.train_end_date = self.train_start_date + pd.Timedelta(days=self.ntd-1, hours=23, minutes=50) # We want to end on the last day at 23:50.
         self.test_start_date = self.train_end_date + pd.Timedelta(minutes=10) # Start = 10 minutes after training set ends, i.e., begin is at 00:00. 
-        self.test_end_date = self.test_start_date + pd.Timedelta(days=self.n_testing_days-1, hours=23, minutes=50)
+        self.test_end_date = self.test_start_date + pd.Timedelta(days=self.max_n_testing_days-1, hours=23, minutes=50) # Again, end on the last day at 23:50. 
 
         # Create masks to filter the data based on dates
         train_mask = self.df['time'].between(self.train_start_date, self.train_end_date)
@@ -130,38 +143,25 @@ class Predict:
 
     def run_model(self) -> None:
         self.model = RandomForestClassifier()
-
-        print(f"Training model with {len(self.X_train)} data points from {self.train_start_date} until {self.train_end_date}.")
-
         self.model.fit(self.X_train, self.y_train)
         self.predictions = self.model.predict(self.X_test)
-
-        print(f"Predicting {len(self.X_test)} data points from {self.test_start_date} until {self.test_end_date}.")
 
     def evaluate_model(self) -> None:
         # Add meta data and evaluation metrics to self.performance.
         # First, for each day in self.n_testing_days, we calculate the performance and save it in a dict.
         performance_metrics_per_day = {}
-        for d in range(self.n_testing_days):
+        for d in range(self.min_n_testing_days, self.max_n_testing_days):
             this_day_predictions = self.predictions[d*144:(d+1)*144]
             this_day_actual_values = self.y_test[d*144:(d+1)*144]
             acc = accuracy_score(this_day_actual_values, this_day_predictions)
-
+        
             # And add them to a dictionary where the key is the day, increasing from 0 to self.n_testing_days.
             performance_metrics_per_day[d] = {
                 "acc":acc,
             }
 
-        self.performance[self.i] = {
-            "meta":{
-                "train_start_date":self.train_start_date,
-                "train_end_date":self.train_end_date,
-                "test_start_date":self.test_start_date,
-                "test_end_date":self.test_end_date,
-            }, # We add performance metrics per day.
+        self.performance[self.ntd][self.validation_loop_index] = {
             "performance_metrics_per_day":performance_metrics_per_day,
-            "predictions":self.predictions,
-            "true_values":np.array(self.y_test.values.tolist())
         }
 
     def visualize(self, test_start_date:datetime, test_end_date:datetime, train_start_date:datetime, train_end_date:datetime, 
@@ -206,13 +206,14 @@ class Predict:
 
 p = Predict(
     df=None, # Choose df = None if you want to load the dataframe from resampled_df_10_min.xlsx.
-    model_date_start=pd.to_datetime("2023-06-15 00:00:00"),
-    model_date_end=pd.to_datetime("2023-07-20 23:50:00"),
-    n_training_days=21,
-    n_testing_days=7,
+    model_date_start=pd.to_datetime("2023-05-25 00:00:00"),
+    model_date_end=pd.to_datetime("2023-07-30 23:50:00"),
+    n_training_days=(1, 21),
+    n_testing_days=(1, 14),
     model_features=["weekday", "hour", "day"], # All options are: "weekday", "day", "hour"
     heatmaps=False,
 )
+
 
 # selected_p = p.performance[40]
 # p.df.location = p.le.inverse_transform(p.df.location)

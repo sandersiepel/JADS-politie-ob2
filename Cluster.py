@@ -314,7 +314,7 @@ class Cluster:
         # Add the cluster labels to self.df
         self.df["cluster"] = self.db.labels_.astype(str)
 
-    def run_clustering(self, eps: float, min_samples: int, algorithm: str, min_cluster_size: int) -> Cluster:
+    def run_clustering(self, eps: float, min_samples: int, algorithm: str, min_cluster_size: int = 20) -> Cluster:
         """This function clusters self.df with the DBSCAN algorithm.
 
         Parameters:

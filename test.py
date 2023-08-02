@@ -2,53 +2,68 @@ import DataLoader as DL
 import DataTransformer as DT
 from LoadRoutinedData import RDData
 import pandas as pd
+import pickle
+import json
+import numpy as np
+from collections import defaultdict
+import sys
 
-# Initialize parameters.
-data_source = "routined"  # Can be either 'google_maps' or 'routined'.
-# HOURS_OFFSET is used to offset the timestamps to account for timezone differences. For google maps, timestamp comes in GMT+0
-# which means that we need to offset it by 2 hours to make it GMT+2 (Dutch timezone). Value must be INT!
-hours_offset = 2
-# BEGIN_DATE and END_DATE are used to filter the data for your analysis.
-begin_date = "2023-05-10"
-end_date = "2023-07-24"  # End date is EXclusive!
-# FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
-fraction = 1
-# For the heatmap visualization we specify a separate BEGIN_DAY and END_DAY (must be between BEGIN_DATE and END_DATE).
-# For readiness purposes, it it suggested to select between 2 and 14 days.
-heatmap_begin_date = "2023-07-10"
-heatmap_end_date = "2023-07-20"  # End date is INclusive!
+min_n_training_days=1
+max_n_training_days=21
+min_n_testing_days=1
+max_n_testing_days=14
+
+with open('model_performances.pkl', 'rb') as f:
+    res = pickle.load(f)
+
+# print (json.dumps(res, indent=2, default=str))
+
+new_res = defaultdict(dict)
+for i in range(min_n_training_days, max_n_training_days +1):
+    # For each training day in range [0, n_training_days] we loop over its keys and we average 
+    
+    # we have 14 x new_res[i], from 1 to 14, each of which contains 19 elements with the validation data
+
+    for t_day in range(min_n_testing_days, max_n_testing_days): # loop 14 times for each testing day
+
+        # For each testing day, we want to access the 19 elements
+        accs = []
+        for y in range(len(res[i])): # 19 loops
+            val_data = res[i][y]
+            accs.append(np.array(val_data['performance_metrics_per_day'][t_day]['acc']))
+
+        new_res[f"training_day_{i}"][f"day_{t_day}"] = round(np.average(accs), 3)
 
 
+import matplotlib.pyplot as plt
 
-def resample_df(df: pd.DataFrame) -> pd.DataFrame:
-    if not set(["begin_time", "end_time", "location_id"]).issubset(set(df.columns)):
-        raise ValueError(
-            "Make sure that df contains columns 'begin_time', 'end_time' and location_id'."
-        )
+def create_heatmap(data_dict):
+    # Extract training day labels
+    training_days = list(data_dict.keys())
+    
+    # Extract day labels
+    day_labels = list(data_dict[training_days[0]].keys())
+    
+    # Create a 2D array to store the data
+    data_array = [[data_dict[training_day][day] for day in day_labels] for training_day in training_days]
+    
+    # Create the heatmap
+    fig, ax = plt.subplots(figsize=(10, 6))
+    heatmap = ax.pcolor(data_array, cmap='YlGnBu')
+    
+    # Add colorbar
+    cbar = plt.colorbar(heatmap)
+    
+    # Set axis labels and title
+    ax.set_xticks(range(len(day_labels)))
+    ax.set_xticklabels(day_labels)
+    ax.set_yticks(range(len(training_days)))
+    ax.set_yticklabels(training_days)
+    plt.xlabel('Days into the future')
+    plt.ylabel('Number of days used for training')
+    plt.title('Accuracy scores for predicting future locations')
+    
+    # Show the plot
+    plt.show()
 
-    # V2 of the code to also include the time intervals until the end_date of the last row:
-    df = df.set_index('begin_time')
-
-    # Create a new DataFrame with a continuous time range covering the desired period
-    time_range = pd.date_range(start=df.index.min().normalize(), end=df['end_time'].max().normalize() + pd.Timedelta(days=1) - pd.Timedelta(seconds=1), freq='10T')
-
-    # Merge the original DataFrame with the continuous time range using merge_asof
-    resampled_df = pd.merge_asof(pd.DataFrame(index=time_range), df.reset_index(), left_index=True, right_on='begin_time', direction='backward')
-
-    df = (
-        resampled_df.reset_index()
-        .drop(["begin_time", "location_id", "end_time"], axis=1)
-        .rename(columns={"index": "time"})
-        .dropna(axis=0)
-    )
-
-    df.to_excel("output/resampled_df_10_min.xlsx")
-
-    return df
-
-df = pd.read_excel("output/start_end_time_df.xlsx", index_col=[0])
-print(f"Df start: \n{df.head(2)}, df end: \n{df.tail(2)} \n\n")
-
-df = resample_df(df)
-print(f"Df start: \n{df.head(2)}, df end: \n{df.tail(2)}")
-
+create_heatmap(new_res)
