@@ -12,7 +12,7 @@ data_source = "google_maps"  # Can be either 'google_maps' or 'routined'.
 # which means that we need to offset it by 2 hours to make it GMT+2 (Dutch timezone). Value must be INT!
 hours_offset = 0 # Should be 0 for routined and 2 for google_maps. 
 # begin_date and end_date are used to filter the data for your analysis.
-begin_date = "2023-04-01"
+begin_date = "2023-01-01"
 end_date = "2023-07-18"  # End date is INclusive! 
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
 fraction = 1
@@ -22,7 +22,7 @@ heatmap_begin_date = "2023-06-20"
 heatmap_end_date = "2023-06-29"  # End date is INclusive! Choose a date that lies (preferably 2 days) before end_date to avoid errors. 
 
 # For the model performance class we need to specify the number of training days (range) and testing days (also range)
-n_training_days=(7, 28) # How many days the training sets should be. These ranges are INclusive. 
+n_training_days=(1, 56) # How many days the training sets should be. These ranges are INclusive. 
 n_testing_days=(1, 14) # How many days into the future you want to predict
 
 
