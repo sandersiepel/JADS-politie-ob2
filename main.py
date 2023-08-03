@@ -12,8 +12,8 @@ data_source = "google_maps"  # Can be either 'google_maps' or 'routined'.
 # which means that we need to offset it by 2 hours to make it GMT+2 (Dutch timezone). Value must be INT!
 hours_offset = 0 # Should be 0 for routined and 2 for google_maps. 
 # begin_date and end_date are used to filter the data for your analysis.
-begin_date = "2023-01-01"
-end_date = "2023-07-18"  # End date is INclusive! 
+begin_date = "2021-03-01"
+end_date = "2022-07-18"  # End date is INclusive! 
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
 fraction = 1
 # For the heatmap visualization we specify a separate begin_date and end_date (must be between begin_date and end_date).
@@ -88,22 +88,22 @@ def main():
     # )
 
     # Step 7. Train and evaluate model to find performance (which is returned as a dict from the main() function)
-    scores = TrainAndEvaluate(
-        df=None, # Choose df = None if you want to load the dataframe from resampled_df_10_min.xlsx.
-        model_date_start=pd.to_datetime(begin_date + " 00:00:00"),
-        model_date_end=pd.to_datetime(end_date + " 23:50:00"),
-        n_training_days=n_training_days, # These ranges are INclusive. 
-        n_testing_days=n_testing_days,
-        model_features=["weekday", "hour", "day"], # All options are: "weekday", "day", "hour"
-        heatmaps=False
-    ).main()
+    # scores = TrainAndEvaluate(
+    #     df=None, # Choose df = None if you want to load the dataframe from resampled_df_10_min.xlsx.
+    #     model_date_start=pd.to_datetime(begin_date + " 00:00:00"),
+    #     model_date_end=pd.to_datetime(end_date + " 23:50:00"),
+    #     n_training_days=n_training_days, # These ranges are INclusive. 
+    #     n_testing_days=n_testing_days,
+    #     model_features=["weekday", "hour", "day"], # All options are: "weekday", "day", "hour"
+    #     heatmaps=False
+    # ).main()
 
-    # Step 8. Visualize model performance. Input: 'scores', which is a dict. 
-    ModelPerformanceVisualizer(
-        scores=scores,
-        n_training_days=n_training_days,
-        n_testing_days=n_testing_days,
-    )
+    # # Step 8. Visualize model performance. Input: 'scores', which is a dict. 
+    # ModelPerformanceVisualizer(
+    #     scores=scores,
+    #     n_training_days=n_training_days,
+    #     n_testing_days=n_testing_days,
+    # )
 
     # Step 6. Train pycaret and find best model
     return None
