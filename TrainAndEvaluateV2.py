@@ -17,7 +17,7 @@ warnings.filterwarnings(action='ignore', message='Mean of empty slice')
 
 
 class TrainAndEvaluate:
-    def __init__(self, df: pd.DataFrame, start_date:datetime, end_date:datetime, model_features=list) -> None:
+    def __init__(self, df: pd.DataFrame, start_date:datetime, end_date:datetime, training_window_size: int, horizon_size: int, model_features=list) -> None:
         """ This class works with the resampled_df_10_min.xlsx file (or, with its df). It will train a ML model multiple times, each time validating the results with a sliding window technique. Output is a heatmap 
         with performances for each combination of  set length and 
         training
@@ -26,6 +26,8 @@ class TrainAndEvaluate:
         self.start_date = start_date
         self.end_date = end_date
         self.model_features = model_features
+        self.training_window_size = training_window_size
+        self.horizon_size = horizon_size
 
         # The self.performance dict contains, for each training size and each validation loop, the accuracy scores for all the days that were predicted (where number of days = (max_n_testing_days - min_n_testing_days))
         self.performance = defaultdict(dict)
@@ -38,14 +40,15 @@ class TrainAndEvaluate:
         self.make_temporal_features()
 
         # Step 3. Make train/test split. We need the loop index to offset the days (for making the training/testing sets).
-        n_windows = math.floor(((self.end_date - self.start_date).days - 60) / 14)
-        offset_days = ((self.end_date - self.start_date).days - 60) % 14
-        print(f"n_windows: {n_windows}, offset_days: {offset_days}")
+        window_step_size = 1
+        self.n_windows = (self.end_date - self.start_date).days - self.training_window_size - self.horizon_size + 2
+        self.offset_days = ((self.end_date - self.start_date).days - self.training_window_size + self.horizon_size) % window_step_size
+        print(f"n_days: {(self.end_date - self.start_date).days}, n_windows (ie blocks): {self.n_windows}, offset_days: {self.offset_days}")
 
-        for block_index in tqdm(range(n_windows), desc=" Block loop", position=1): # Loop 7 times    
+        for block_index in tqdm(range(self.n_windows), desc=" Block loop", position=1): # Loop 7 times    
             self.block_index = block_index
 
-            for train_index in tqdm(range(60), desc=" Training window size loop", position=0, leave=False):
+            for train_index in tqdm(range(self.training_window_size), desc=" Training window size loop", position=0, leave=False):
                 self.train_index = train_index
 
                 self.make_train_test_split()
@@ -105,12 +108,11 @@ class TrainAndEvaluate:
         if "day" in self.model_features:
             self.df["day"] = self.df["time"].dt.day
 
-    def make_train_test_split(self) -> None:
-        self.test_start_date = self.start_date + pd.Timedelta(days=(self.block_index * 14) + 60)
-        self.test_end_date = self.test_start_date + pd.Timedelta(days=13, hours=23, minutes=50)
-        self.train_end_date = self.test_start_date - pd.Timedelta(minutes=10)
-        self.train_start_date = self.train_end_date - pd.Timedelta(days=self.train_index, hours=23, minutes=50)
-        
+    def make_train_test_split(self) -> None:        
+        self.train_start_date = self.start_date + pd.Timedelta(days=self.offset_days+self.block_index+self.train_index)
+        self.train_end_date = self.train_start_date + pd.Timedelta(days=(self.training_window_size-1)-self.train_index, hours=23, minutes=50)
+        self.test_start_date = self.train_end_date + pd.Timedelta(minutes=10)
+        self.test_end_date = self.test_start_date + pd.Timedelta(days=self.horizon_size-1, hours=23, minutes=50)
 
         train_mask = self.df["time"].between(self.train_start_date, self.train_end_date)
         test_mask = self.df["time"].between(self.test_start_date, self.test_end_date)
@@ -132,7 +134,7 @@ class TrainAndEvaluate:
 
     def evaluate_model(self) -> None:
         # print(f"Block {self.block_index}, train window size: {self.train_index}. Training: {self.train_start_date}-{self.train_end_date}, testing: {self.test_start_date}-{self.test_end_date}.")
-        for d in range(14):
+        for d in range(self.horizon_size):
             this_day_predictions = self.predictions[d*144:(d+1)*144]
             this_day_actual_values = self.y_test[d*144:(d+1)*144]
             acc = accuracy_score(this_day_actual_values, this_day_predictions)
@@ -141,15 +143,16 @@ class TrainAndEvaluate:
                 self.performance[f"training_set_size_{self.train_index}"][f"days_into_future_{d}"] = []
 
             self.performance[f"training_set_size_{self.train_index}"][f"days_into_future_{d}"].append(round(acc, 4))
-            
-            # print(f"Added acc: {round(acc, 3)} to self.performance[{self.train_index}][{d}]")
-    
+                
 
 scores = TrainAndEvaluate(
     df = None,
-    start_date = pd.to_datetime("2022-01-01 00:00:00"),
-    end_date = pd.to_datetime("2022-12-30 23:50:00"),
-    model_features = ["day", "hour", "weekday"]
+    start_date = pd.to_datetime("2022-10-01 00:00:00"),
+    end_date = pd.to_datetime("2022-12-31 23:50:00"),
+    training_window_size = 60,
+    horizon_size = 21,
+    model_features = ["day", "hour", "weekday"],
+    
 ).main()
 
 
@@ -168,9 +171,6 @@ for training_size, forecast_scores in scores.items():
 # Create a DataFrame from the data
 import pandas as pd
 df = pd.DataFrame(heatmap_data, columns=["Training Days", *forecast_scores.keys()])
-
-print(df.tail())
-print(df.columns)
 
 df = df.set_index('Training Days')
 sns.heatmap(df.T.round(3), cmap="Blues")
