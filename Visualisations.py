@@ -8,6 +8,7 @@ import sys
 from sklearn import preprocessing
 import pickle
 from collections import defaultdict
+import seaborn as sns
 
 class HeatmapVisualizer:
     def __init__(self, begin_day: str, end_day: str, df: pd.DataFrame, name: str, verbose: bool = True) -> None:
@@ -328,69 +329,34 @@ class HeatmapVisualizer:
 
 
 class ModelPerformanceVisualizer():
-    def __init__(self, scores:dict, n_training_days:tuple, n_testing_days:tuple) -> None:
-        self.min_n_training_days, self.max_n_training_days = n_training_days
-        self.min_n_testing_days, self.max_n_testing_days = n_testing_days
-
+    def __init__(self, scores:dict) -> None:
         if isinstance(scores, dict):
             self.scores = scores
         else:   
             with open('output/model_performances.pkl', 'rb') as f:
                 self.scores = pickle.load(f)
 
-        self.scores = self.transform_dict()
+        self.prepare_data()
         self.make_heatmap()
     
-    def transform_dict(self) -> defaultdict:
-        new_res = defaultdict(dict)
-        for i in range(self.min_n_training_days, self.max_n_training_days +1):
-            for t_day in range(self.min_n_testing_days, self.max_n_testing_days): # Loop over each testing day
-                accs = []
-                for y in range(len(self.scores[i])):
-                    val_data = self.scores[i][y]
-                    accs.append(np.array(val_data['performance_metrics_per_day'][t_day]['acc']))
+    def prepare_data(self):
+        # Prepare data for the heatmap
+        heatmap_data = []
 
-                # Avoid ZeroDivisionError
-                if sum(accs) > 0:
-                    new_res[f"training_day_{i}"][f"day_{t_day}"] = round(np.average(accs), 3)
-                else:
-                    new_res[f"training_day_{i}"][f"day_{t_day}"] = 0
+        for training_size, forecast_scores in self.scores.items():
+            training_days = int(training_size.split("_")[-1])
+            avg_values = [np.mean(score_list) for score_list in forecast_scores.values()]
+            heatmap_data.append([training_days, *avg_values])
 
-        return new_res
+        # Create a DataFrame from the data
+        df = pd.DataFrame(heatmap_data, columns=["Training Days", *forecast_scores.keys()])
+        self.df = df.set_index('Training Days')
 
     def make_heatmap(self):
-        """ data_dict is a dict where the keys are "training_day_x", for each training day. Each key's value is again a dict with values
-        for "day_1", "day_2", up to "day_n" where n = max_n_testing_days. 
-        
-        """
-        # Extract training day labels
-        training_days = list(self.scores.keys())
-        
-        # Extract day labels
-        day_labels = list(self.scores[training_days[0]].keys())
-        
-        # Create a 2D array to store the data
-        data_array = [[self.scores[training_day][day] for day in day_labels] for training_day in training_days]
-        
-        # Create the heatmap
-        _, ax = plt.subplots(figsize=(10, 6))
-        heatmap = ax.pcolor(data_array, cmap='YlGnBu')
-        
-        # Add colorbar
-        plt.colorbar(heatmap)
-        
-        # Set axis labels and title
-        ax.set_xticks(range(len(day_labels)))
-        ax.set_xticklabels(day_labels)
-        ax.set_yticks(range(len(training_days)))
-        ax.set_yticklabels(training_days)
-
-        plt.xlabel('Days into the future')
-        plt.ylabel('Number of days used for training')
-        plt.title('Accuracy scores for predicting future locations')
-        
-        # Show the plot
-        # plt.show()
-        plt.savefig("output/model_performance.png", dpi=1000)
-        print(f"Saved model performance heatmap to output/model_performance.png")
+        self.df = self.df[self.df.columns[::-1]].T
+        sns.heatmap(self.df, cmap="Blues")
+        path = "output/model_performance_heatmap.png"
+        plt.savefig(path)
+        plt.show()
+        print(f"Saved model performance heatmap to output/model_performance_heatmap.png")
 

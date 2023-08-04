@@ -2,7 +2,6 @@ from sklearn import preprocessing
 import pandas as pd
 from sklearn.metrics import accuracy_score
 from sklearn.ensemble import RandomForestClassifier
-from Visualisations import HeatmapVisualizer
 import sys
 import warnings
 import sklearn.exceptions
@@ -10,7 +9,9 @@ from datetime import datetime
 from collections import defaultdict
 import pickle
 from tqdm import tqdm
-import math
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 warnings.filterwarnings("ignore", category=sklearn.exceptions.UndefinedMetricWarning)
 warnings.filterwarnings(action='ignore', message='Mean of empty slice')
@@ -143,35 +144,3 @@ class TrainAndEvaluate:
                 self.performance[f"training_set_size_{self.train_index}"][f"days_into_future_{d}"] = []
 
             self.performance[f"training_set_size_{self.train_index}"][f"days_into_future_{d}"].append(round(acc, 4))
-                
-
-scores = TrainAndEvaluate(
-    df = None,
-    start_date = pd.to_datetime("2022-10-01 00:00:00"),
-    end_date = pd.to_datetime("2022-12-31 23:50:00"),
-    training_window_size = 60,
-    horizon_size = 21,
-    model_features = ["day", "hour", "weekday"],
-    
-).main()
-
-
-import seaborn as sns
-import matplotlib.pyplot as plt
-import numpy as np
-
-# Prepare data for the heatmap
-heatmap_data = []
-
-for training_size, forecast_scores in scores.items():
-    training_days = int(training_size.split("_")[-1])
-    avg_values = [np.mean(score_list) for score_list in forecast_scores.values()]
-    heatmap_data.append([training_days, *avg_values])
-
-# Create a DataFrame from the data
-import pandas as pd
-df = pd.DataFrame(heatmap_data, columns=["Training Days", *forecast_scores.keys()])
-
-df = df.set_index('Training Days')
-sns.heatmap(df.T.round(3), cmap="Blues")
-plt.show()
