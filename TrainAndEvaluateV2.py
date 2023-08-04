@@ -38,17 +38,17 @@ class TrainAndEvaluate:
         self.make_temporal_features()
 
         # Step 3. Make train/test split. We need the loop index to offset the days (for making the training/testing sets).
-        n_windows = math.floor((self.end_date - self.start_date).days / 74) # 74 = 60 days training, 14 days predicting (i.e., max window size)
-        offset_days = 1 + ((self.end_date - self.start_date).days % 74)
-        print(f"n_windows: {n_windows}")
+        n_windows = math.floor(((self.end_date - self.start_date).days - 60) / 14)
+        offset_days = ((self.end_date - self.start_date).days - 60) % 14
+        print(f"n_windows: {n_windows}, offset_days: {offset_days}")
 
         for block_index in tqdm(range(n_windows), desc=" Block loop", position=1): # Loop 7 times    
-            self.block_index = block_index        
+            self.block_index = block_index
 
             for train_index in tqdm(range(60), desc=" Training window size loop", position=0, leave=False):
                 self.train_index = train_index
 
-                self.make_train_test_split(block_index, train_index, offset_days)
+                self.make_train_test_split()
 
                 # Step 4. Run model and make the predictions.
                 self.run_model()
@@ -105,13 +105,12 @@ class TrainAndEvaluate:
         if "day" in self.model_features:
             self.df["day"] = self.df["time"].dt.day
 
-    def make_train_test_split(self, block_index: int, train_index: int, offset_days:int) -> None:
-        start_offset_days = offset_days + (block_index * 74)
-
-        self.train_start_date = self.start_date + pd.Timedelta(days=start_offset_days)
-        self.train_end_date = self.train_start_date + pd.Timedelta(days=train_index, hours=23, minutes=50)
-        self.test_start_date = self.train_end_date + pd.Timedelta(minutes=10) 
+    def make_train_test_split(self) -> None:
+        self.test_start_date = self.start_date + pd.Timedelta(days=(self.block_index * 14) + 60)
         self.test_end_date = self.test_start_date + pd.Timedelta(days=13, hours=23, minutes=50)
+        self.train_end_date = self.test_start_date - pd.Timedelta(minutes=10)
+        self.train_start_date = self.train_end_date - pd.Timedelta(days=self.train_index, hours=23, minutes=50)
+        
 
         train_mask = self.df["time"].between(self.train_start_date, self.train_end_date)
         test_mask = self.df["time"].between(self.test_start_date, self.test_end_date)
@@ -132,6 +131,7 @@ class TrainAndEvaluate:
         self.predictions = self.model.predict(self.X_test)
 
     def evaluate_model(self) -> None:
+        # print(f"Block {self.block_index}, train window size: {self.train_index}. Training: {self.train_start_date}-{self.train_end_date}, testing: {self.test_start_date}-{self.test_end_date}.")
         for d in range(14):
             this_day_predictions = self.predictions[d*144:(d+1)*144]
             this_day_actual_values = self.y_test[d*144:(d+1)*144]
@@ -140,35 +140,38 @@ class TrainAndEvaluate:
             if f"days_into_future_{d}" not in self.performance[f"training_set_size_{self.train_index}"]:
                 self.performance[f"training_set_size_{self.train_index}"][f"days_into_future_{d}"] = []
 
-            self.performance[f"training_set_size_{self.train_index}"][f"days_into_future_{d}"].append(acc)
+            self.performance[f"training_set_size_{self.train_index}"][f"days_into_future_{d}"].append(round(acc, 4))
+            
             # print(f"Added acc: {round(acc, 3)} to self.performance[{self.train_index}][{d}]")
     
 
 scores = TrainAndEvaluate(
     df = None,
-    start_date = pd.to_datetime("2021-03-01 00:00:00"),
-    end_date = pd.to_datetime("2022-07-15 23:50:00"),
+    start_date = pd.to_datetime("2022-01-01 00:00:00"),
+    end_date = pd.to_datetime("2022-12-30 23:50:00"),
     model_features = ["day", "hour", "weekday"]
 ).main()
 
-import matplotlib.pyplot as plt
 
-# Extract data from the scores dictionary
-training_sizes = []
-performance_scores = []
+import seaborn as sns
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Prepare data for the heatmap
+heatmap_data = []
 
 for training_size, forecast_scores in scores.items():
-    training_sizes.append(int(training_size.split("_")[-1]))
-    performance_scores.append(sum(sum(score_list) / len(score_list) for score_list in forecast_scores.values()) / len(forecast_scores))
+    training_days = int(training_size.split("_")[-1])
+    avg_values = [np.mean(score_list) for score_list in forecast_scores.values()]
+    heatmap_data.append([training_days, *avg_values])
 
-# Create the plot
-plt.figure(figsize=(10, 6))
-plt.plot(training_sizes, performance_scores, marker='o')
-plt.title("Performance vs. Number of Training Days")
-plt.xlabel("Number of Training Days")
-plt.ylabel("Performance Score")
-plt.grid(True)
-plt.xticks(training_sizes)
-plt.tight_layout()
+# Create a DataFrame from the data
+import pandas as pd
+df = pd.DataFrame(heatmap_data, columns=["Training Days", *forecast_scores.keys()])
 
+print(df.tail())
+print(df.columns)
+
+df = df.set_index('Training Days')
+sns.heatmap(df.T.round(3), cmap="Blues")
 plt.show()
