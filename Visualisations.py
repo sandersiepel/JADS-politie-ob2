@@ -11,7 +11,7 @@ from collections import defaultdict
 import seaborn as sns
 
 class HeatmapVisualizer:
-    def __init__(self, begin_day: str, end_day: str, df: pd.DataFrame, name: str, verbose: bool = True) -> None:
+    def __init__(self, begin_day: str, end_day: str, df: pd.DataFrame, name: str, title: str, verbose: bool = True) -> None:
         """TODO: add docstring!
  
         df is a pd.DataFrame with "time" column (10-minute intervals) and "location" column (string labels of locations).
@@ -20,6 +20,7 @@ class HeatmapVisualizer:
         # First we make sure to validate the user input.
         self.verbose = verbose
         self.name = name
+        self.title = title
         self.validate_input(begin_day, end_day, df)
 
         # Set validated params
@@ -102,7 +103,7 @@ class HeatmapVisualizer:
         self.add_grid()
         self.add_colorbar()
         self.ax.set_title(
-            f"Location history of Significant Locations (\u0394t = 10min) from {self.begin_day} 00:00 to {self.end_day} 23:50"
+            f"{self.title}. Location history of Significant Locations (\u0394t = 10min) from {self.begin_day} 00:00 to {self.end_day} 23:50"
         )
         self.ax.set_xlabel("Time")
         self.fig.savefig(f"output/{self.name}.png", dpi=1000)
