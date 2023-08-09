@@ -10,19 +10,20 @@ import pandas as pd
 data_source = "google_maps"  # Can be either 'google_maps' or 'routined'.
 # hours_offset is used to offset the timestamps to account for timezone differences. For google maps, timestamp comes in GMT+0
 # which means that we need to offset it by 2 hours to make it GMT+2 (Dutch timezone). Value must be INT!
-hours_offset = 0 # Should be 0 for routined and 2 for google_maps. 
+hours_offset = 2 # Should be 0 for routined and 2 for google_maps. 
 # begin_date and end_date are used to filter the data for your analysis.
-begin_date = "2022-01-01"
-end_date = "2022-08-28"  # End date is INclusive! 
+begin_date = "2023-03-01"
+end_date = "2023-05-28"  # End date is INclusive! 
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
 fraction = 1
 # For the heatmap visualization we specify a separate begin_date and end_date (must be between begin_date and end_date).
 # For readiness purposes, it it suggested to select between 2 and 14 days.
-heatmap_begin_date = "2023-06-20"
-heatmap_end_date = "2023-06-29"  # End date is INclusive! Choose a date that lies (preferably 2 days) before end_date to avoid errors. 
+heatmap_begin_date = "2023-05-20"
+heatmap_end_date = "2023-05-28"  # End date is INclusive! Choose a date that lies (preferably 2 days) before end_date to avoid errors. 
 # For the model performance class we need to specify the number of training days (range) and testing horizon (also in days)
-training_window_size = 60
-horizon_size = 14
+training_window_size = 30
+horizon_size = 10
+window_step_size = 1
 
 
 def main():
@@ -81,9 +82,9 @@ def main():
     # Step 5. Transform data (resample) to 10-minute intervals (required for subsequent modeling and visualizations).
     df = DT.resample_df(df)
 
-    # # Step 6. Create and save heatmap visualization to output/heatmap.png.
+    # Step 6. Create and save heatmap visualization to output/heatmap.png.
     # HeatmapVisualizer(
-    #     heatmap_begin_date, heatmap_end_date, df, verbose=True, name="heatmap"
+    #     heatmap_begin_date, heatmap_end_date, df, verbose=True, name="heatmap", title="Actual data"
     # )
 
     # Step 7. Train and evaluate model to find performance (which is returned as a dict from the main() function)
@@ -93,7 +94,8 @@ def main():
         end_date = pd.to_datetime(f"{end_date} 23:50:00"),
         training_window_size = training_window_size,
         horizon_size = horizon_size,
-        model_features = ["day", "hour", "weekday"],
+        window_step_size = window_step_size,
+        model_features = ["day", "hour", "weekday", "window_block"],
     ).main()
 
     # Step 8. Visualize model performance. Input: 'scores', which is a dict. 

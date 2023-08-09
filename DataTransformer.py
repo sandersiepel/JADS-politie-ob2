@@ -44,7 +44,7 @@ def fill_start_end_time_gaps(df: pd.DataFrame) -> pd.DataFrame:
         for i in range(len(df) - 1):
             if df.iloc[i]["end_time"] != df.iloc[i + 1]["begin_time"]:
                 new_row = {
-                    "location": "unknown",
+                    "location": df.iloc[i]["location"], # Location can also be set to "unknown".
                     "begin_time": df.iloc[i]["end_time"] + pd.Timedelta(seconds=1), # We add one second to the begin and end times aren't overlapping
                     "end_time": df.iloc[i + 1]["begin_time"] - pd.Timedelta(seconds=1),
                     "location_id": -1,

@@ -9,13 +9,14 @@ from datetime import datetime
 from collections import defaultdict
 import pickle
 from tqdm import tqdm
+import math
 
 warnings.filterwarnings("ignore", category=sklearn.exceptions.UndefinedMetricWarning)
 warnings.filterwarnings(action='ignore', message='Mean of empty slice')
 
 
 class TrainAndEvaluate:
-    def __init__(self, df: pd.DataFrame, start_date:datetime, end_date:datetime, training_window_size: int, horizon_size: int, model_features=list) -> None:
+    def __init__(self, df: pd.DataFrame, start_date:datetime, end_date:datetime, training_window_size: int, horizon_size: int, window_step_size: int, model_features=list) -> None:
         """ This class works with the resampled_df_10_min.xlsx file (or, with its df). It will train a ML model multiple times, each time validating the results with a sliding window technique. Output is a heatmap 
         with performances for each combination of  set length and 
         training
@@ -26,6 +27,7 @@ class TrainAndEvaluate:
         self.model_features = model_features
         self.training_window_size = training_window_size
         self.horizon_size = horizon_size
+        self.window_step_size = window_step_size
 
         # The self.performance dict contains, for each training size and each validation loop, the accuracy scores for all the days that were predicted (where number of days = (max_n_testing_days - min_n_testing_days))
         self.performance = defaultdict(dict)
@@ -38,9 +40,8 @@ class TrainAndEvaluate:
         self.make_temporal_features()
 
         # Step 3. Make train/test split. We need the loop index to offset the days (for making the training/testing sets).
-        window_step_size = 1
-        self.n_windows = (self.end_date - self.start_date).days - self.training_window_size - self.horizon_size + 2
-        self.offset_days = ((self.end_date - self.start_date).days - self.training_window_size + self.horizon_size) % window_step_size
+        self.n_windows = 1 + math.floor(((self.end_date - self.start_date).days - self.training_window_size - self.horizon_size) / self.window_step_size)
+        self.offset_days = ((self.end_date - self.start_date).days - self.training_window_size - self.horizon_size) % self.window_step_size
         print(f"n_days: {(self.end_date - self.start_date).days}, n_windows (ie blocks): {self.n_windows}, offset_days: {self.offset_days}")
 
         for block_index in tqdm(range(self.n_windows), desc=" Block loop", position=1): # Loop 7 times    
@@ -106,8 +107,11 @@ class TrainAndEvaluate:
         if "day" in self.model_features:
             self.df["day"] = self.df["time"].dt.day
 
+        if "window_block" in self.model_features:
+            self.df["window_block"] = ((self.df['time'].dt.minute * 60 + self.df['time'].dt.second) // 600).astype(int)
+
     def make_train_test_split(self) -> None:        
-        self.train_start_date = self.start_date + pd.Timedelta(days=self.offset_days+self.block_index+self.train_index)
+        self.train_start_date = self.start_date + pd.Timedelta(days=self.offset_days+(self.block_index * self.window_step_size)+self.train_index)
         self.train_end_date = self.train_start_date + pd.Timedelta(days=(self.training_window_size-1)-self.train_index, hours=23, minutes=50)
         self.test_start_date = self.train_end_date + pd.Timedelta(minutes=10)
         self.test_end_date = self.test_start_date + pd.Timedelta(days=self.horizon_size-1, hours=23, minutes=50)
@@ -121,7 +125,7 @@ class TrainAndEvaluate:
         self.X_test = self.df.loc[test_mask, self.model_features]
         self.y_test = self.df.loc[test_mask, "location"]
 
-        # print(f"Block {self.block_index}, train size: {self.train_index}. Training: {self.train_start_date}-{self.train_end_date}, testing: {self.test_start_date}-{self.test_end_date}.")
+        print(f"Block {self.block_index}, train size: {self.train_index}. Training: {self.train_start_date}-{self.train_end_date}, testing: {self.test_start_date}-{self.test_end_date}.")
 
     def run_model(self) -> None:
         self.model = RandomForestClassifier()
@@ -132,12 +136,18 @@ class TrainAndEvaluate:
 
     def evaluate_model(self) -> None:
         # print(f"Block {self.block_index}, train window size: {self.train_index}. Training: {self.train_start_date}-{self.train_end_date}, testing: {self.test_start_date}-{self.test_end_date}.")
+        
+        accs = []
         for d in range(self.horizon_size):
             this_day_predictions = self.predictions[d*144:(d+1)*144]
             this_day_actual_values = self.y_test[d*144:(d+1)*144]
             acc = accuracy_score(this_day_actual_values, this_day_predictions)
+            accs.append(acc)
 
-            if f"days_into_future_{d}" not in self.performance[f"training_set_size_{self.train_index}"]:
-                self.performance[f"training_set_size_{self.train_index}"][f"days_into_future_{d}"] = []
+            if f"days_into_future_{d}" not in self.performance[f"training_set_size_{self.training_window_size - self.train_index}"]:
+                self.performance[f"training_set_size_{self.training_window_size - self.train_index}"][f"days_into_future_{d}"] = []
 
-            self.performance[f"training_set_size_{self.train_index}"][f"days_into_future_{d}"].append(round(acc, 4))
+            self.performance[f"training_set_size_{self.training_window_size - self.train_index}"][f"days_into_future_{d}"].append(round(acc, 4))
+
+        print(f"Accuracy scores for this test period: {accs}")
+        print(f"Self.performance is now: {self.performance}")
