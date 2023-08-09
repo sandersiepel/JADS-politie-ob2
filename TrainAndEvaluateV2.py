@@ -10,6 +10,7 @@ from collections import defaultdict
 import pickle
 from tqdm import tqdm
 import math
+import numpy as np
 
 warnings.filterwarnings("ignore", category=sklearn.exceptions.UndefinedMetricWarning)
 warnings.filterwarnings(action='ignore', message='Mean of empty slice')
@@ -129,7 +130,9 @@ class TrainAndEvaluate:
 
     def run_model(self) -> None:
         self.model = RandomForestClassifier()
-        self.model.fit(self.X_train, self.y_train)
+
+        # We use the sample_weight parameter to favour more recent datapoints. TODO: maybe using a weekly pattern in these sampling weights is better?
+        self.model.fit(self.X_train, self.y_train, sample_weight=np.linspace(0, 1, len(self.X_train))) 
 
         # Make predictions for 14 days into the future. 
         self.predictions = self.model.predict(self.X_test)
