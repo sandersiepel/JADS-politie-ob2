@@ -125,7 +125,7 @@ class TrainAndEvaluate:
         self.X_test = self.df.loc[test_mask, self.model_features]
         self.y_test = self.df.loc[test_mask, "location"]
 
-        print(f"Block {self.block_index}, train size: {self.train_index}. Training: {self.train_start_date}-{self.train_end_date}, testing: {self.test_start_date}-{self.test_end_date}.")
+        # print(f"Block {self.block_index}, train size: {self.train_index}. Training: {self.train_start_date}-{self.train_end_date}, testing: {self.test_start_date}-{self.test_end_date}.")
 
     def run_model(self) -> None:
         self.model = RandomForestClassifier()
@@ -149,5 +149,5 @@ class TrainAndEvaluate:
 
             self.performance[f"training_set_size_{self.training_window_size - self.train_index}"][f"days_into_future_{d}"].append(round(acc, 4))
 
-        print(f"Accuracy scores for this test period: {accs}")
-        print(f"Self.performance is now: {self.performance}")
+        # print(f"Accuracy scores for this test period: {accs}")
+        # print(f"Self.performance is now: {self.performance}")

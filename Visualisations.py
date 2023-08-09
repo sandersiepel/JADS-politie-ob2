@@ -354,7 +354,7 @@ class ModelPerformanceVisualizer():
         self.df = df.set_index('Training Days')
 
     def make_heatmap(self):
-        self.df = self.df[self.df.columns[::-1]].T
+        self.df = self.df.iloc[::-1,::-1].T # Reverse both rows and columns, and then transpose (to swap axes)
         sns.heatmap(self.df, cmap="Blues")
         path = "output/model_performance_heatmap.png"
         plt.savefig(path)
