@@ -330,14 +330,15 @@ class HeatmapVisualizer:
 
 
 class ModelPerformanceVisualizer():
-    def __init__(self, scores:dict) -> None:
+    def __init__(self, scores:dict, name:str) -> None:
         if isinstance(scores, dict):
             self.scores = scores
         else:   
-            with open('output/model_performances.pkl', 'rb') as f:
+            with open(f"output/{name}.pkl", 'rb') as f:
                 self.scores = pickle.load(f)
 
         print(self.scores)
+        self.name = name
         self.prepare_data()
         self.make_heatmap()
     
@@ -347,7 +348,7 @@ class ModelPerformanceVisualizer():
 
         for training_size, forecast_scores in self.scores.items():
             training_days = int(training_size.split("_")[-1])
-            avg_values = [np.mean(score_list) for score_list in forecast_scores.values()]
+            avg_values = [np.median(score_list) for score_list in forecast_scores.values()]
             heatmap_data.append([training_days, *avg_values])
 
         # Create a DataFrame from the data
@@ -356,9 +357,7 @@ class ModelPerformanceVisualizer():
 
     def make_heatmap(self):
         self.df = self.df.iloc[::-1,::-1].T # Reverse both rows and columns, and then transpose (to swap axes)
-        print(self.df)
         sns.heatmap(self.df, cmap="Blues")
-        path = "output/model_performance_heatmap.png"
-        plt.savefig(path)
+        plt.savefig(f"output/{self.name}.png")
         plt.show()
-        print(f"Saved model performance heatmap to output/model_performance_heatmap.png")
+        print(f"Saved model performance heatmap to output/{self.name}.png")

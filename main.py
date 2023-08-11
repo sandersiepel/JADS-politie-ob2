@@ -10,10 +10,10 @@ import pandas as pd
 data_source = "google_maps"  # Can be either 'google_maps' or 'routined'.
 # hours_offset is used to offset the timestamps to account for timezone differences. For google maps, timestamp comes in GMT+0
 # which means that we need to offset it by 2 hours to make it GMT+2 (Dutch timezone). Value must be INT!
-hours_offset = 0 # Should be 0 for routined and 2 for google_maps. 
+hours_offset = 2 # Should be 0 for routined and 2 for google_maps. 
 # begin_date and end_date are used to filter the data for your analysis.
 begin_date = "2022-01-01"
-end_date = "2022-12-31"  # End date is INclusive! 
+end_date = "2023-07-01"  # End date is INclusive! 
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
 fraction = 1
 # For the heatmap visualization we specify a separate begin_date and end_date (must be between begin_date and end_date).
@@ -21,8 +21,8 @@ fraction = 1
 heatmap_begin_date = "2023-01-20"
 heatmap_end_date = "2023-05-28"  # End date is INclusive! Choose a date that lies (preferably 2 days) before end_date to avoid errors. 
 # For the model performance class we need to specify the number of training days (range) and testing horizon (also in days)
-training_window_size = 21
-horizon_size = 7
+training_window_size = 120
+horizon_size = 14
 window_step_size = 1
 
 
@@ -48,14 +48,14 @@ def main():
         pre_filter=True,  # Apply filters to the data before the clustering (such as removing moving points)
         post_filter=True,  # Apply filters to the data/clusters after the clustering (such as deleting homogeneous clusters)
         filter_moving=True,  # Do we want to delete the data points where the subject was moving?
-        centroid_k=20,  # Number of nearest neighbors to consider for density calculation (for cluster centroids)
+        centroid_k=10,  # Number of nearest neighbors to consider for density calculation (for cluster centroids)
         min_unique_days=1,  # If post_filter = True, then delete all clusters that have been visited on less than min_unique_days days.
     )
 
     # Then we run the clustering and visualisation
     df = (
         c.run_clustering(
-            min_samples=150,  # The number of samples in a neighborhood for a point to be considered as a core point
+            min_samples=200,  # The number of samples in a neighborhood for a point to be considered as a core point
             eps=0.01,  # The maximum distance between two samples for one to be considered as in the neighborhood of the other. 0.01 = 10m
             algorithm="dbscan",  # Choose either 'dbscan' or 'hdbscan'. If 'hdbscan', only min_samples is required.
             # min_cluster_size=50,  # Param of HDBSCAN: the minimum size a final cluster can be. The higher this is, the bigger your clusters will be
@@ -87,21 +87,21 @@ def main():
     #     heatmap_begin_date, heatmap_end_date, df, verbose=True, name="heatmap", title="Actual data"
     # )
 
-    # # Step 7. Train and evaluate model to find performance (which is returned as a dict from the main() function)
-    # scores = TrainAndEvaluate(
-    #     df = df,
-    #     start_date = pd.to_datetime(f"{begin_date} 00:00:00"),
-    #     end_date = pd.to_datetime(f"{end_date} 23:50:00"),
-    #     training_window_size = training_window_size,
-    #     horizon_size = horizon_size,
-    #     window_step_size = window_step_size,
-    #     model_features = ["day", "hour", "weekday", "window_block"],
-    # ).main()
+    # Step 7. Train and evaluate model to find performance (which is returned as a dict from the main() function)
+    scores = TrainAndEvaluate(
+        df = df,
+        start_date = pd.to_datetime(f"{begin_date} 00:00:00"),
+        end_date = pd.to_datetime(f"{end_date} 23:50:00"),
+        training_window_size = training_window_size,
+        horizon_size = horizon_size,
+        window_step_size = window_step_size,
+        model_features = ["day", "hour", "weekday", "window_block"],
+    ).main()
 
-    # # Step 8. Visualize model performance. Input: 'scores', which is a dict. 
-    # ModelPerformanceVisualizer(
-    #     scores=None
-    # )
+    # Step 8. Visualize model performance. Input: 'scores', which is a dict. 
+    ModelPerformanceVisualizer(
+        scores=scores
+    )
 
     # Step 6. Train pycaret and find best model
     return None

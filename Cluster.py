@@ -427,14 +427,11 @@ class Cluster:
             )
 
         self.df_centroids["location"] = self.df_centroids.apply(
-            lambda row: self._OSM_request(row["latitude"], row["longitude"])[0][
-                "display_name"
-            ],
-            axis=1,
+            lambda row: self._OSM_request(row["latitude"], row["longitude"]), axis=1,
         )
 
     @staticmethod
-    def _OSM_request(latitude: float, longitude: float) -> dict:
+    def _OSM_request(latitude: float, longitude: float) -> str:
         """
         Returns OSM data for a coordinate point
 
@@ -453,7 +450,11 @@ class Cluster:
         response = requests.get(url, params={})
         data = response.json()
 
-        return data
+        if not "display_name" in data[0]:
+            print(f"Message (Clustering OSM): could not retrieve OSM data, returning 'unknown' as cluster label.")
+            return "unknown"
+        else:
+            return data[0]["display_name"]
 
     def _build_centroid_dataframe(self) -> pd.DataFrame:
         """
