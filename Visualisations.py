@@ -337,7 +337,6 @@ class ModelPerformanceVisualizer():
             with open(f"output/{name}.pkl", 'rb') as f:
                 self.scores = pickle.load(f)
 
-        print(self.scores)
         self.name = name
         self.prepare_data()
         self.make_heatmap()
@@ -359,5 +358,6 @@ class ModelPerformanceVisualizer():
         self.df = self.df.iloc[::-1,::-1].T # Reverse both rows and columns, and then transpose (to swap axes)
         sns.heatmap(self.df, cmap="Blues")
         plt.savefig(f"output/{self.name}.png")
-        plt.show()
-        print(f"Saved model performance heatmap to output/{self.name}.png")
+        # plt.show()
+        # print(f"Saved model performance heatmap to output/{self.name}.png")
+        plt.clf() # Clear figure command to avoid stacking axes in consecutive plots.

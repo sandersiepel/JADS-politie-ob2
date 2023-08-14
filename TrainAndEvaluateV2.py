@@ -11,6 +11,7 @@ import pickle
 from tqdm import tqdm
 import math
 import numpy as np
+from Visualisations import ModelPerformanceVisualizer
 
 warnings.filterwarnings("ignore", category=sklearn.exceptions.UndefinedMetricWarning)
 warnings.filterwarnings(action='ignore', message='Mean of empty slice')
@@ -32,6 +33,7 @@ class TrainAndEvaluate:
         self.training_window_size = training_window_size
         self.horizon_size = horizon_size
         self.window_step_size = window_step_size
+        self.log = []
 
         # The self.performance dict contains, for each training size and each validation loop, the accuracy scores for all the days that were predicted (where number of days = (max_n_testing_days - min_n_testing_days))
         self.performance, self.baseline_performance = defaultdict(dict), defaultdict(dict)
@@ -62,14 +64,27 @@ class TrainAndEvaluate:
                 # Step 5. Evaluate model performance and store results in self.performance dict.
                 self.evaluate_model()
 
+            # Save current heatmap
+            ModelPerformanceVisualizer(
+                scores=self.performance,
+                name=f"test1/performance_{block_index}"
+            )
+
         with open('output/model_performances.pkl', 'wb') as f:
             pickle.dump(self.performance, f)
 
-        with open('output/baseline_performances.pkl', 'wb') as f:
-            pickle.dump(self.baseline_performance, f)
+        # with open('output/baseline_performances.pkl', 'wb') as f:
+        #     pickle.dump(self.baseline_performance, f)
 
         print("\nSaved model performance to output/model_performances.pkl")
-        print("\nSaved baseline performance to output/baseline_performances.pkl")
+        # print("\nSaved baseline performance to output/baseline_performances.pkl")
+
+        # Save log file
+        with open('output/logfile.txt', 'w') as f:
+            for line in self.log:
+                f.write(f"{line}\n")
+
+        print("Saved logfile to output/logfile.txt")
 
         return self.performance, self.baseline_performance
 
@@ -144,7 +159,7 @@ class TrainAndEvaluate:
         self.predictions = self.model.predict(self.X_test)
 
         # Lastly, we run our baseline model (for comparison reasons).
-        self.run_baseline_model()
+        # self.run_baseline_model()
 
     def run_baseline_model(self):
         # First we create a dataframe "most_common_locations" that holds the most common location for each combination of the model's features (e.g., hourofday, dayofweek, windowblock)
@@ -165,7 +180,8 @@ class TrainAndEvaluate:
         self.baseline_predictions = result_df.location_y
 
     def evaluate_model(self) -> None:
-        # print(f"Block {self.block_index}, train window size: {self.train_index}. Training: {self.train_start_date}-{self.train_end_date}, testing: {self.test_start_date}-{self.test_end_date}.")
+        self.log.append(f"Block {self.block_index}, train window size: {self.train_index}. Training: {self.train_start_date}-{self.train_end_date}, testing: {self.test_start_date}-{self.test_end_date}.")
+        accs = []
         for d in range(self.horizon_size):
             # First, evaluate the ML model's predictions and store acc in self.performance
             this_day_predictions = self.predictions[d*144:(d+1)*144]
@@ -176,54 +192,56 @@ class TrainAndEvaluate:
                 self.performance[f"training_set_size_{self.training_window_size - self.train_index}"][f"days_into_future_{d}"] = []
 
             self.performance[f"training_set_size_{self.training_window_size - self.train_index}"][f"days_into_future_{d}"].append(round(acc, 4))
+            accs.append(acc)
 
-        for d in range(self.horizon_size):
-            # Then, evaluate the baseline's predictions and store acc in self.baseline_performance
-            this_day_predictions = self.baseline_predictions[d*144:(d+1)*144]
-            this_day_actual_values = self.y_test[d*144:(d+1)*144]
-            acc = accuracy_score(this_day_actual_values, this_day_predictions)
+        self.log.append(f"Found accuracies: {accs}. \n")
+        # for d in range(self.horizon_size):
+        #     # Then, evaluate the baseline's predictions and store acc in self.baseline_performance
+        #     this_day_predictions = self.baseline_predictions[d*144:(d+1)*144]
+        #     this_day_actual_values = self.y_test[d*144:(d+1)*144]
+        #     acc = accuracy_score(this_day_actual_values, this_day_predictions)
 
-            if f"days_into_future_{d}" not in self.baseline_performance[f"training_set_size_{self.training_window_size - self.train_index}"]:
-                self.baseline_performance[f"training_set_size_{self.training_window_size - self.train_index}"][f"days_into_future_{d}"] = []
+        #     if f"days_into_future_{d}" not in self.baseline_performance[f"training_set_size_{self.training_window_size - self.train_index}"]:
+        #         self.baseline_performance[f"training_set_size_{self.training_window_size - self.train_index}"][f"days_into_future_{d}"] = []
 
-            self.baseline_performance[f"training_set_size_{self.training_window_size - self.train_index}"][f"days_into_future_{d}"].append(round(acc, 4))
+        #     self.baseline_performance[f"training_set_size_{self.training_window_size - self.train_index}"][f"days_into_future_{d}"].append(round(acc, 4))
 
 
-# Initialize parameters.
-data_source = "google_maps"  # Can be either 'google_maps' or 'routined'.
-# hours_offset is used to offset the timestamps to account for timezone differences. For google maps, timestamp comes in GMT+0
-# which means that we need to offset it by 2 hours to make it GMT+2 (Dutch timezone). Value must be INT!
-hours_offset = 2 # Should be 0 for routined and 2 for google_maps. 
-# begin_date and end_date are used to filter the data for your analysis.
-begin_date = "2022-10-01"
-end_date = "2023-05-01"  # End date is INclusive! 
-# FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
-fraction = 1
-# For the model performance class we need to specify the number of training days (range) and testing horizon (also in days)
-training_window_size = 30
-horizon_size = 10
-window_step_size = 1
+# # Initialize parameters.
+# data_source = "google_maps"  # Can be either 'google_maps' or 'routined'.
+# # hours_offset is used to offset the timestamps to account for timezone differences. For google maps, timestamp comes in GMT+0
+# # which means that we need to offset it by 2 hours to make it GMT+2 (Dutch timezone). Value must be INT!
+# hours_offset = 2 # Should be 0 for routined and 2 for google_maps. 
+# # begin_date and end_date are used to filter the data for your analysis.
+# begin_date = "2022-10-01"
+# end_date = "2023-05-01"  # End date is INclusive! 
+# # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
+# fraction = 1
+# # For the model performance class we need to specify the number of training days (range) and testing horizon (also in days)
+# training_window_size = 30
+# horizon_size = 10
+# window_step_size = 1
 
-from Visualisations import ModelPerformanceVisualizer
+# from Visualisations import ModelPerformanceVisualizer
 
-# scores, baseline_scores = TrainAndEvaluate(
-#         df = None,
-#         start_date = pd.to_datetime(f"{begin_date} 00:00:00"),
-#         end_date = pd.to_datetime(f"{end_date} 23:50:00"),
-#         training_window_size = training_window_size,
-#         horizon_size = horizon_size,
-#         window_step_size = window_step_size,
-#         model_features = ["day", "weekday", "hour", "window_block"],
-#     ).main()
+# # scores, baseline_scores = TrainAndEvaluate(
+# #         df = None,
+# #         start_date = pd.to_datetime(f"{begin_date} 00:00:00"),
+# #         end_date = pd.to_datetime(f"{end_date} 23:50:00"),
+# #         training_window_size = training_window_size,
+# #         horizon_size = horizon_size,
+# #         window_step_size = window_step_size,
+# #         model_features = ["day", "weekday", "hour", "window_block"],
+# #     ).main()
 
-# Step 8. Visualize model performance. Input: 'scores', which is a dict. 
-ModelPerformanceVisualizer(
-    scores=None,
-    name="model_performances"
-)
+# # Step 8. Visualize model performance. Input: 'scores', which is a dict. 
+# ModelPerformanceVisualizer(
+#     scores=None,
+#     name="model_performances"
+# )
 
-# Step 8. Visualize model performance. Input: 'scores', which is a dict. 
-ModelPerformanceVisualizer(
-    scores=None,
-    name="baseline_performances"
-)
+# # Step 8. Visualize model performance. Input: 'scores', which is a dict. 
+# ModelPerformanceVisualizer(
+#     scores=None,
+#     name="baseline_performances"
+# )
