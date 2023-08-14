@@ -330,14 +330,14 @@ class HeatmapVisualizer:
 
 
 class ModelPerformanceVisualizer():
-    def __init__(self, scores:dict, name:str) -> None:
+    def __init__(self, scores:dict, pkl_file_name:str) -> None:
         if isinstance(scores, dict):
             self.scores = scores
         else:   
-            with open(f"output/{name}.pkl", 'rb') as f:
+            with open(f"output/{pkl_file_name}.pkl", 'rb') as f:
                 self.scores = pickle.load(f)
 
-        self.name = name
+        self.name = pkl_file_name
         self.prepare_data()
         self.make_heatmap()
     
@@ -347,16 +347,22 @@ class ModelPerformanceVisualizer():
 
         for training_size, forecast_scores in self.scores.items():
             training_days = int(training_size.split("_")[-1])
-            avg_values = [np.median(score_list) for score_list in forecast_scores.values()]
+            avg_values = [np.mean(score_list) for score_list in forecast_scores.values()]
             heatmap_data.append([training_days, *avg_values])
 
         # Create a DataFrame from the data
         df = pd.DataFrame(heatmap_data, columns=["Training Days", *forecast_scores.keys()])
         self.df = df.set_index('Training Days')
+        self.df.index.names = ['Number of days used for training']
+        self.df.columns = self.df.columns.str.split('_').str[-1]
+
 
     def make_heatmap(self):
         self.df = self.df.iloc[::-1,::-1].T # Reverse both rows and columns, and then transpose (to swap axes)
-        sns.heatmap(self.df, cmap="Blues")
+        fig, ax = plt.subplots(figsize=(10,5))
+        sns.heatmap(self.df, cmap="Blues", xticklabels = 10, yticklabels=7)
+        plt.ylabel('Number of days into the future')
+        plt.xticks(rotation=0) 
         plt.savefig(f"output/{self.name}.png")
         # plt.show()
         # print(f"Saved model performance heatmap to output/{self.name}.png")
