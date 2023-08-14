@@ -339,25 +339,54 @@ class ModelPerformanceVisualizer():
 
         self.name = pkl_file_name
 
+        # Make a heatmap with mean/median scores of each combination of number of training days and horizon days. 
         self.heatmap()
+
+        # Make a line graph with the performance of the models for each number of days predicting into the future. 
         self.accuracy_horizons()
 
+        # Make a line graph with the performance of the models for each number of training days.
+        self.accuracy_per_training_days()
+
     def accuracy_horizons(self):
-        new_scores = defaultdict(dict)
+        new_scores = {}
         for k, _ in self.scores.items():
             # key (k) is "number of training days"
             for x, y in self.scores[k].items():
-                h = x.split("_")[-1]
-                new_scores[h].extend(y)
+                    h = x.split("_")[-1]
+                    if not h in new_scores:
+                        new_scores[h] = []
+
+                    new_scores[h].extend(y)
 
         means = [np.mean(v) for _, v in new_scores.items()]
+        print(means)
 
         # Plot results in a line graph
-        fig = plt.figure(figsize=(6, 4))
+        fig, ax = plt.subplots(figsize=(6, 4))
+        ax.plot(means)
+        ax.set_title("Model performance per number of days into the future")
+        ax.set_xlabel("Number of days into the future")
+        ax.set_ylabel("Model performance (accuracy)")
         fig.savefig('output/model_performance_per_horizon.png', dpi=600)
-        plt.plot(means)
         plt.clf()
 
+    def accuracy_per_training_days(self):
+        means = []
+        for _, v in self.scores.items():
+            data = []
+            for _, y in v.items():
+                data.extend(y)
+
+            means.append(np.mean(data))
+
+        fig, ax = plt.subplots(figsize=(6, 4))
+        ax.plot(means)
+        ax.set_title("Model performance per number of days used for training")
+        ax.set_xlabel("Number of days used for training")
+        ax.set_ylabel("Model performance (accuracy)")
+        fig.savefig('output/model_performance_per_training_days.png', dpi=600)
+        plt.clf()
 
     def heatmap(self) -> None:
         def prepare_data(self) -> None:
@@ -386,6 +415,6 @@ class ModelPerformanceVisualizer():
             # print(f"Saved model performance heatmap to output/{self.name}.png")
             plt.clf() # Clear figure command to avoid stacking axes in consecutive plots.
 
-        prepare_data()
-        make_heatmap()
+        prepare_data(self)
+        make_heatmap(self)
 
