@@ -9,12 +9,14 @@ from sklearn.neighbors import KDTree
 import requests
 import plotly.express as px
 from typing import Tuple
+import os
 
 
 class Cluster:
     def __init__(
         self,
         df: pd.DataFrame,
+        outputs_folder_name:str,
         verbose: bool = False,
         pre_filter: bool = True,
         post_filter: bool = True,
@@ -36,13 +38,16 @@ class Cluster:
 
         # Make a deep copy to not adjust the original df
         self.df = df.copy(deep=True)
-
+        self.outputs_folder_name = outputs_folder_name
         self.verbose = verbose
         self.pre_filter = pre_filter
         self.post_filter = post_filter
         self.filter_moving = filter_moving
         self.centroid_k = centroid_k
         self.min_unique_days = min_unique_days
+
+        # Create output folder, if necessary.
+        os.makedirs(f"output/{outputs_folder_name}", exist_ok=True)
 
         # Run init functions
         if self.pre_filter:
@@ -622,7 +627,7 @@ class Cluster:
         fig.update_layout(mapbox_style="carto-positron")
         fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
         # fig.show()
-        fig.write_html("output/clustermap.html")
+        fig.write_html(f"output/{self.outputs_folder_name}/clustermap.html")
 
         return self
 
@@ -645,9 +650,9 @@ class Cluster:
 
         if export_xlsx:
             try:
-                self.df.to_excel(f"output/{name}.xlsx")
+                self.df.to_excel(f"output/{self.outputs_folder_name}/{name}.xlsx")
                 print(
-                    f"Message (saving file): Added locations to original df, saved it as output/{name}.xlsx"
+                    f"Message (saving file): Added locations to original df, saved it as output/{self.outputs_folder_name}/{name}.xlsx"
                 )
             except PermissionError:
                 print("Make sure to close the Excel file if it's already opened.")

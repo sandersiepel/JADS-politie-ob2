@@ -1,7 +1,7 @@
 import pandas as pd
 
 
-def transform_start_end_times(df, fill_gaps: bool = False) -> pd.DataFrame:
+def transform_start_end_times(df, outputs_folder_name:str, fill_gaps: bool = False) -> pd.DataFrame:
     # First we select the timestamp, location and cluster columns.
     df = df[["timestamp", "location", "cluster"]].copy()
 
@@ -29,7 +29,7 @@ def transform_start_end_times(df, fill_gaps: bool = False) -> pd.DataFrame:
         df = fill_start_end_time_gaps(df)
 
     # df should now have the columns: location (string label), location_id (unique id for each unique location), begin_time and end_time.
-    df.to_excel("output/start_end_time_df.xlsx")
+    df.to_excel(f"output/{outputs_folder_name}/start_end_time_df.xlsx")
 
     print(
         f"Message (data transformer): First record in dataset starts at {str(df.iloc[0].begin_time)} and last record ends at {str(df.iloc[-1].end_time)}"
@@ -64,7 +64,7 @@ def fill_start_end_time_gaps(df: pd.DataFrame) -> pd.DataFrame:
     return df.sort_values("begin_time").reset_index(drop=True)
 
 
-def resample_df(df: pd.DataFrame) -> pd.DataFrame:
+def resample_df(df: pd.DataFrame, outputs_folder_name:str) -> pd.DataFrame:
     if not set(["begin_time", "end_time", "location_id"]).issubset(set(df.columns)):
         raise ValueError(
             "Make sure that df contains columns 'begin_time', 'end_time' and location_id'."
@@ -86,6 +86,6 @@ def resample_df(df: pd.DataFrame) -> pd.DataFrame:
         .dropna(axis=0)
     )
 
-    df.to_excel("output/resampled_df_10_min.xlsx")
+    df.to_excel(f"output/{outputs_folder_name}/resampled_df_10_min.xlsx")
 
     return df

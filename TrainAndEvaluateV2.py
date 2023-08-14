@@ -18,7 +18,7 @@ warnings.filterwarnings(action='ignore', message='Mean of empty slice')
 
 
 class TrainAndEvaluate:
-    def __init__(self, df: pd.DataFrame, start_date:datetime, end_date:datetime, training_window_size: int, horizon_size: int, window_step_size: int, model_features=list) -> None:
+    def __init__(self, df: pd.DataFrame, outputs_folder_name:str, start_date:datetime, end_date:datetime, training_window_size: int, horizon_size: int, window_step_size: int, model_features=list) -> None:
         """ This class works with the resampled_df_10_min.xlsx file (or, with its df). It will train a ML model multiple times with the following scheme:
         train with a training set size between 1 day and training_window_size days. Then test on horizon_size number of days. Then move train + test window
         with window_step_size days into the future. 
@@ -27,6 +27,7 @@ class TrainAndEvaluate:
         with the highest count for a particular time-window. 
         """
         self.df = df
+        self.outputs_folder_name = outputs_folder_name
         self.start_date = start_date
         self.end_date = end_date
         self.model_features = model_features
@@ -64,27 +65,27 @@ class TrainAndEvaluate:
                 # Step 5. Evaluate model performance and store results in self.performance dict.
                 self.evaluate_model()
 
-            # Save current heatmap
-            ModelPerformanceVisualizer(
-                scores=self.performance,
-                name=f"test1/performance_{block_index}"
-            )
+        # Show and save model performances (heatmap, line graphs of accuracies per number of training days and testing days)
+        ModelPerformanceVisualizer(
+            scores=self.performance,
+            outputs_folder_name=self.outputs_folder_name
+        )
 
-        with open('output/model_performances.pkl', 'wb') as f:
+        with open(f"output/{self.outputs_folder_name}/model_performances.pkl", 'wb') as f:
             pickle.dump(self.performance, f)
 
         # with open('output/baseline_performances.pkl', 'wb') as f:
         #     pickle.dump(self.baseline_performance, f)
 
-        print("\nSaved model performance to output/model_performances.pkl")
+        print(f"\nSaved model performance to output/{self.outputs_folder_name}/model_performances.pkl")
         # print("\nSaved baseline performance to output/baseline_performances.pkl")
 
         # Save log file
-        with open('output/logfile.txt', 'w') as f:
+        with open(f"output/{self.outputs_folder_name}/logfile.txt", 'w') as f:
             for line in self.log:
                 f.write(f"{line}\n")
 
-        print("Saved logfile to output/logfile.txt")
+        print(f"Saved logfile to output/{self.outputs_folder_name}/logfile.txt")
 
         return self.performance, self.baseline_performance
 
@@ -93,11 +94,11 @@ class TrainAndEvaluate:
         if not isinstance(self.df, pd.DataFrame):
             try:
                 self.df = pd.read_excel(
-                    "output/resampled_df_10_min.xlsx", index_col=[0]
+                    f"output/{self.outputs_folder_name}/resampled_df_10_min.xlsx", index_col=[0]
                 )
             except FileNotFoundError as e:
                 print(
-                    f"{e}: Make sure to put your resampled_df_10_min.xlsx file in the 'output' folder."
+                    f"{e}: Make sure to put your resampled_df_10_min.xlsx file in the 'output/{self.outputs_folder_name}' folder."
                 )
                 sys.exit(1)
 

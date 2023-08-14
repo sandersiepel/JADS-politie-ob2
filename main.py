@@ -12,18 +12,19 @@ data_source = "google_maps"  # Can be either 'google_maps' or 'routined'.
 # which means that we need to offset it by 2 hours to make it GMT+2 (Dutch timezone). Value must be INT!
 hours_offset = 2 # Should be 0 for routined and 2 for google_maps. 
 # begin_date and end_date are used to filter the data for your analysis.
-begin_date = "2021-01-01"
-end_date = "2023-07-01"  # End date is INclusive! 
+begin_date = "2022-11-01"
+end_date = "2023-01-01"  # End date is INclusive! 
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
-fraction = 0.5
+fraction = 1
 # For the heatmap visualization we specify a separate begin_date and end_date (must be between begin_date and end_date).
 # For readiness purposes, it it suggested to select between 2 and 14 days.
 heatmap_begin_date = "2023-01-20"
 heatmap_end_date = "2023-05-28"  # End date is INclusive! Choose a date that lies (preferably 2 days) before end_date to avoid errors. 
 # For the model performance class we need to specify the number of training days (range) and testing horizon (also in days)
-training_window_size = 140
-horizon_size = 70
+training_window_size = 10
+horizon_size = 14
 window_step_size = 1
+outputs_folder_name = f"test1-{training_window_size}-{horizon_size}-{window_step_size}" # All of the outputs will be placed in output/outputs_folder_name
 
 
 def main():
@@ -44,6 +45,7 @@ def main():
     # First, make an instance of the Cluster class and define its settings.
     c = Cluster(
         df,  # Input dataset (with latitude, longitude, timestamp columns)
+        outputs_folder_name=outputs_folder_name, 
         verbose=True,  # Do we want to see print statements?
         pre_filter=True,  # Apply filters to the data before the clustering (such as removing moving points)
         post_filter=True,  # Apply filters to the data/clusters after the clustering (such as deleting homogeneous clusters)
@@ -68,19 +70,19 @@ def main():
             export_xlsx=False,  # Export the dataframe to excel file? Useful for analyzing.
             name="test",
         )
-        .df  # These functions return 'self' so we can chain them and easily access the df attribute.
+        .df  # These functions return 'self' so we can chain them and easily access the df attribute (for input to further modeling/visualization).
     )
 
     # Step 3. Transform our labeled dataset (result of clustering) into a start- and endtime dataset for each "entry of location".
     # If fill_gaps = True, the gaps between location visits (often due to traveling) are filled with the location "unknown".
-    df = DT.transform_start_end_times(df, fill_gaps=True)
+    df = DT.transform_start_end_times(df, outputs_folder_name, fill_gaps=True)
 
     # Step 4. Make markov chain and visualize it with a graph. This represents the one-step transition probability from each state (i.e., location).
     # The graph is saved at outputs/markovchain.html. It will also open a browser, which cannot be avoided unfortunately.
     # MarkovChain(df)
 
     # Step 5. Transform data (resample) to 10-minute intervals (required for subsequent modeling and visualizations).
-    df = DT.resample_df(df)
+    df = DT.resample_df(df, outputs_folder_name)
 
     # Step 6. Create and save heatmap visualization to output/heatmap.png.
     # HeatmapVisualizer(
@@ -90,6 +92,7 @@ def main():
     # Step 7. Train and evaluate model to find performance (which is returned as a dict from the main() function)
     scores, _ = TrainAndEvaluate(
         df = df,
+        outputs_folder_name=outputs_folder_name,
         start_date = pd.to_datetime(f"{begin_date} 00:00:00"),
         end_date = pd.to_datetime(f"{end_date} 23:50:00"),
         training_window_size = training_window_size,
@@ -101,7 +104,7 @@ def main():
     # Step 8. Visualize model performance. Input: 'scores', which is a dict. 
     ModelPerformanceVisualizer(
         scores=scores,
-        name="model_performances_heatmap"
+        outputs_folder_name=outputs_folder_name
     )
 
     # Step 6. Train pycaret and find best model

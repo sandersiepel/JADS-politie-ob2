@@ -215,45 +215,6 @@ class HeatmapVisualizer:
             "#ffed6f",
         ]
 
-        # color_list = [
-        #     "#8dd3c7",
-        #     "#ffffb3",
-        #     "#bebada",
-        #     "#fb8072",
-        #     "#80b1d3",
-        #     "#fdb462",
-        #     "#b3de69",
-        #     "#fccde5",
-        #     "#d9d9d9",
-        #     "#bc80bd",
-        #     "#ccebc5",
-        #     "#ffed6f",
-        # ]
-        # color_list = [plt.cm.tab20(i) for i in range(20)]
-        # color_list = [
-        #     "#F2F3F4",
-        #     "#222222",
-        #     "#F3C300",
-        #     "#875692",
-        #     "#F38400",
-        #     "#A1CAF1",
-        #     "#BE0032",
-        #     "#C2B280",
-        #     "#848482",
-        #     "#008856",
-        #     "#E68FAC",
-        #     "#0067A5",
-        #     "#F99379",
-        #     "#604E97",
-        #     "#F6A600",
-        #     "#B3446C",
-        #     "#DCD300",
-        #     "#882D17",
-        #     "#8DB600",
-        #     "#654522",
-        #     "#E25822",
-        #     "#2B3D26",
-        # ]  # These are the so called "kelly colors of maximum contrast"
         return ListedColormap(color_list[: self.n_locations])
 
     def make_boundaryNorm(self) -> BoundaryNorm:
@@ -330,14 +291,14 @@ class HeatmapVisualizer:
 
 
 class ModelPerformanceVisualizer():
-    def __init__(self, scores:dict, pkl_file_name:str) -> None:
+    def __init__(self, scores:dict, outputs_folder_name:str) -> None:
+        self.outputs_folder_name = outputs_folder_name
+
         if isinstance(scores, dict):
             self.scores = scores
         else:   
-            with open(f"output/{pkl_file_name}.pkl", 'rb') as f:
+            with open(f"output/{self.outputs_folder_name}/model_performances.pkl", 'rb') as f:
                 self.scores = pickle.load(f)
-
-        self.name = pkl_file_name
 
         # Make a heatmap with mean/median scores of each combination of number of training days and horizon days. 
         self.heatmap()
@@ -348,7 +309,7 @@ class ModelPerformanceVisualizer():
         # Make a line graph with the performance of the models for each number of training days.
         self.accuracy_per_training_days()
 
-    def accuracy_horizons(self):
+    def accuracy_horizons(self) -> None:
         new_scores = {}
         for k, _ in self.scores.items():
             # key (k) is "number of training days"
@@ -360,7 +321,6 @@ class ModelPerformanceVisualizer():
                     new_scores[h].extend(y)
 
         means = [np.mean(v) for _, v in new_scores.items()]
-        print(means)
 
         # Plot results in a line graph
         fig, ax = plt.subplots(figsize=(6, 4))
@@ -368,10 +328,10 @@ class ModelPerformanceVisualizer():
         ax.set_title("Model performance per number of days into the future")
         ax.set_xlabel("Number of days into the future")
         ax.set_ylabel("Model performance (accuracy)")
-        fig.savefig('output/model_performance_per_horizon.png', dpi=600)
+        fig.savefig(f"output/{self.outputs_folder_name}/model_performance_per_horizon.png", dpi=600)
         plt.clf()
 
-    def accuracy_per_training_days(self):
+    def accuracy_per_training_days(self) -> None:
         means = []
         for _, v in self.scores.items():
             data = []
@@ -385,7 +345,7 @@ class ModelPerformanceVisualizer():
         ax.set_title("Model performance per number of days used for training")
         ax.set_xlabel("Number of days used for training")
         ax.set_ylabel("Model performance (accuracy)")
-        fig.savefig('output/model_performance_per_training_days.png', dpi=600)
+        fig.savefig(f"output/{self.outputs_folder_name}/model_performance_per_training_days.png", dpi=600)
         plt.clf()
 
     def heatmap(self) -> None:
@@ -407,12 +367,11 @@ class ModelPerformanceVisualizer():
         def make_heatmap(self) -> None:
             self.df = self.df.iloc[::-1,::-1].T # Reverse both rows and columns, and then transpose (to swap axes)
             fig, ax = plt.subplots(figsize=(10,5))
-            sns.heatmap(self.df, cmap="Blues", xticklabels = 10, yticklabels=7)
+            sns.heatmap(self.df, cmap="Blues") #  xticklabels = 10, yticklabels=7
             plt.ylabel('Number of days into the future')
             plt.xticks(rotation=0) 
-            plt.savefig(f"output/{self.name}.png")
+            plt.savefig(f"output/{self.outputs_folder_name}/model_performance_heatmap.png")
             # plt.show()
-            # print(f"Saved model performance heatmap to output/{self.name}.png")
             plt.clf() # Clear figure command to avoid stacking axes in consecutive plots.
 
         prepare_data(self)
