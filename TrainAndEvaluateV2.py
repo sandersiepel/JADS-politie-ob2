@@ -133,7 +133,15 @@ class TrainAndEvaluate:
         if "window_block" in self.model_features:
             self.df["window_block"] = ((self.df['time'].dt.minute * 60 + self.df['time'].dt.second) // 600).astype(int)
 
-    def make_train_test_split(self) -> None:        
+    def make_train_test_split(self) -> None:
+        """ This function defines the begin and end times for the training/testing sets. After that, it defines X_train, y_train, X_test, y_test. 
+        Before making the train/test split, we might want to drop 1 or more features, based on the length of the training data (in days):
+            - If length of training data <= 30, delete the "day" feature
+            - if length of training data <= 7, delete the "weekday" feature
+        """        
+
+        # TODO: delete features
+
         self.train_start_date = self.start_date + pd.Timedelta(days=self.offset_days+(self.block_index * self.window_step_size)+self.train_index)
         self.train_end_date = self.train_start_date + pd.Timedelta(days=(self.training_window_size-1)-self.train_index, hours=23, minutes=50)
         self.test_start_date = self.train_end_date + pd.Timedelta(minutes=10)

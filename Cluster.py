@@ -598,7 +598,7 @@ class Cluster:
         if "source" in self.df.columns:
             hover_data.append("source")
 
-        fig = px.scatter_mapbox(
+        self.fig = px.scatter_mapbox(
             df_plot,
             lat="latitude",
             lon="longitude",
@@ -612,7 +612,7 @@ class Cluster:
         )
 
         # Add the cluster centroids that are stored in self.df_centroids
-        fig.add_trace(
+        self.fig.add_trace(
             px.scatter_mapbox(
                 df_centroids_plot,
                 lat="latitude",
@@ -624,10 +624,10 @@ class Cluster:
             ).data[0]
         )
 
-        fig.update_layout(mapbox_style="carto-positron")
-        fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
+        self.fig.update_layout(mapbox_style="carto-positron")
+        self.fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
         # fig.show()
-        fig.write_html(f"output/{self.outputs_folder_name}/clustermap.html")
+        self.fig.write_html(f"output/{self.outputs_folder_name}/clustermap.html")
 
         return self
 

@@ -12,8 +12,8 @@ data_source = "google_maps"  # Can be either 'google_maps' or 'routined'.
 # which means that we need to offset it by 2 hours to make it GMT+2 (Dutch timezone). Value must be INT!
 hours_offset = 2 # Should be 0 for routined and 2 for google_maps. 
 # begin_date and end_date are used to filter the data for your analysis.
-begin_date = "2022-11-01"
-end_date = "2023-01-01"  # End date is INclusive! 
+begin_date = "2023-01-01"
+end_date = "2023-05-01"  # End date is INclusive! 
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
 fraction = 1
 # For the heatmap visualization we specify a separate begin_date and end_date (must be between begin_date and end_date).
@@ -21,10 +21,10 @@ fraction = 1
 heatmap_begin_date = "2023-01-20"
 heatmap_end_date = "2023-05-28"  # End date is INclusive! Choose a date that lies (preferably 2 days) before end_date to avoid errors. 
 # For the model performance class we need to specify the number of training days (range) and testing horizon (also in days)
-training_window_size = 10
-horizon_size = 14
+training_window_size = 60
+horizon_size = 21
 window_step_size = 1
-outputs_folder_name = f"test1-{training_window_size}-{horizon_size}-{window_step_size}" # All of the outputs will be placed in output/outputs_folder_name
+outputs_folder_name = f"test3-{training_window_size}-{horizon_size}-{window_step_size}" # All of the outputs will be placed in output/outputs_folder_name
 
 
 def main():
