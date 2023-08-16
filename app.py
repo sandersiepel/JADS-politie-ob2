@@ -8,6 +8,7 @@ import pandas as pd
 from Visualisations import ModelPerformanceVisualizer
 from collections import deque
 import dash_bootstrap_components as dbc
+from datetime import datetime
 
 
 # Initialize parameters.
@@ -26,7 +27,9 @@ horizon_size = 21
 window_step_size = 1
 outputs_folder_name = f"dash1-{training_window_size}-{horizon_size}-{window_step_size}" # All of the outputs will be placed in output/outputs_folder_name
 
-################### DASH VARIABLES ########################################################
+log_messages = deque(maxlen=20)  
+app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+
 SIDEBAR_STYLE = {
     "background-color": "#f8f9fa",
     "padding": "20px"
@@ -36,71 +39,63 @@ CONTENT_STYLE = {
     "padding": "20px"
 }
 
+
 maindiv = html.Div([
-    html.H2("Results"),
-    html.Hr(),
     dbc.Row([
-        dbc.Col(html.Div([
-            html.H3("Scatter mapbox")
-        ]), width=12, style={"min-height": "50px"}),  # adjust width
-        dbc.Col(html.Div([
-            html.H3("Model performance")
-        ]), width=12, style={"min-height": "50px"})  # adjust width
+        html.H2("Scatter mapbox"),
+        dcc.Graph(id="scatter_mapbox_graph")
+    ], style={"min-height": "50px", "padding-bottom": "50px"}),
+    dbc.Row([
+        html.H2("Predicting"),
     ])
 ], style=CONTENT_STYLE)
+
 
 sidebar = html.Div(
     [
         html.H2("Settings"),
-        html.Hr(),
         html.P(
-            "This panel allows you to change the pipeline's settings. For information on how to choose the right settings, see the documentation."
+            "This panel allows you to change the pipeline's settings."
         ),
+
         # Text inputs
-        dbc.Label("Training window size:"),
-        dbc.Input(id='training_window_size', type='text', value=training_window_size),
+        dbc.Label("Min samples:"),
+        dbc.Input(id='min_samples', type='text', value=200),
         html.Br(),
 
-        dbc.Label("Horizon size:"),
-        dbc.Input(id='horizon_size', type='text', value=horizon_size),
+        dbc.Label("Eps:"),
+        dbc.Input(id='eps', type='text', value=0.01),
         html.Br(),
 
-        dbc.Label("Window step size:"),
-        dbc.Input(id='window_step_size', type='text', value=window_step_size),
+        dbc.Label("Min unique days:"),
+        dbc.Input(id='min_unique_days', type='text', value=1),
         html.Br(),
 
         dbc.Button('Run Pipeline', id='submit-val', n_clicks=0, color="primary", className="me-1", style={"width":"100%"}),
-        html.Div(id='container-button-basic',
-                 children='Log messages will appear here.'),
+
+        # Elements for log messages.
+        html.Div(id='container-button-basic', style={"margin-top":"10px"}),
         dcc.Interval(id='interval-component', interval=1000, n_intervals=0),  # Update every 2 seconds
-        html.Div(id="log-display")
+        dcc.Markdown(id="log-display", style={"whiteSpace":"pre-wrap"})
     ],
     style=SIDEBAR_STYLE,
 )
 
-
-
-################### DASH VARIABLES ########################################################
-
-log_messages = deque(maxlen=20)  
-app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
-
 app.layout = html.Div([
     dbc.Row([
-        dbc.Col(sidebar, width=3),  # adjust width
-        dbc.Col(maindiv, width=9)  # adjust width
+        dbc.Col(sidebar, width=3), 
+        dbc.Col(maindiv, width=9) 
     ])
 ])
 
-
 @callback(
-    Output('container-button-basic', 'children'),
-    Input('submit-val', 'n_clicks'),
-    State('training_window_size', 'value'),
-    State('horizon_size', 'value'),
-    State('window_step_size', 'value')
+    Output('scatter_mapbox_graph', 'figure'),
+    [Input('submit-val', 'n_clicks'),
+    State('min_samples', 'value'),
+    State('eps', 'value'),
+    State('min_unique_days', 'value')]
 )
-def run_pipeline(n_clicks, training_window_size, horizon_size, window_step_size):
+def run_pipeline(n_clicks, min_samples, eps, min_unique_days):
     if n_clicks > 0:
         
         # Step 1. Load data
@@ -117,41 +112,46 @@ def run_pipeline(n_clicks, training_window_size, horizon_size, window_step_size)
 
         add_log_message(f"Loaded the data with size: {len(df)}")
 
-        # Step 2. Run clustering
-        df = run_clustering(df)
+        # Step 2. Run clustering. Returns df and a fig with a scattermapbox. 
+        df, fig = run_clustering(df, min_samples, eps, min_unique_days)
+        # fig = fig.update_layout()
 
         # Step 3. Transform data
         add_log_message(f"Transforming and resampling the dataset")
         df = DT.transform_start_end_times(df, outputs_folder_name, fill_gaps=True)
 
-        # Step 4. Resample dataset
+        # Step 4. Resample dataset. This saves the data at output/outputs_folder_name/resampled_df_10_min.xlsx.
         df = DT.resample_df(df, outputs_folder_name)
+        add_log_message(f"Done, saving datasets at output/{outputs_folder_name}")
 
-        # Step 5. Train models and save performance
-        add_log_message(f"Training and evaluating the model performance")
-        scores, _ = TrainAndEvaluate(
-            df = df,
-            outputs_folder_name=outputs_folder_name,
-            start_date = pd.to_datetime(f"{begin_date} 00:00:00"),
-            end_date = pd.to_datetime(f"{end_date} 23:50:00"),
-            training_window_size = training_window_size,
-            horizon_size = horizon_size,
-            window_step_size = window_step_size,
-            model_features = ["day", "hour", "weekday", "window_block"],
-        ).main()
+        # # Step 5. Train models and save performance
+        # add_log_message(f"Training and evaluating the model performance")
+        # scores, _ = TrainAndEvaluate(
+        #     df = df,
+        #     outputs_folder_name=outputs_folder_name,
+        #     start_date = pd.to_datetime(f"{begin_date} 00:00:00"),
+        #     end_date = pd.to_datetime(f"{end_date} 23:50:00"),
+        #     training_window_size = training_window_size,
+        #     horizon_size = horizon_size,
+        #     window_step_size = window_step_size,
+        #     model_features = ["day", "hour", "weekday", "window_block"],
+        # ).main()
 
-        # Step 6. Visualize performance and save images
-        add_log_message(f"Visualizing model performance")
-        ModelPerformanceVisualizer(
-            scores=scores,
-            outputs_folder_name=outputs_folder_name
-        )
+        # # Step 6. Visualize performance and save images
+        # add_log_message(f"Visualizing model performance")
+        # ModelPerformanceVisualizer(
+        #     scores=scores,
+        #     outputs_folder_name=outputs_folder_name
+        # )
 
-        add_log_message(f"Pipeline finished!")
-        return "Pipeline finished!"    
+        # add_log_message(f"Pipeline finished!")
+        # return "Pipeline finished!"    
+        return fig
+    else:
+        return {}
 
 
-def run_clustering(df):
+def run_clustering(df, min_samples, eps, min_unique_days):
     add_log_message(f"Starting the clustering")
     # Step 2. Run clustering
     c = Cluster(
@@ -162,14 +162,14 @@ def run_clustering(df):
         post_filter=True,  # Apply filters to the data/clusters after the clustering (such as deleting homogeneous clusters)
         filter_moving=True,  # Do we want to delete the data points where the subject was moving?
         centroid_k=10,  # Number of nearest neighbors to consider for density calculation (for cluster centroids)
-        min_unique_days=1,  # If post_filter = True, then delete all clusters that have been visited on less than min_unique_days days.
+        min_unique_days=min_unique_days,  # If post_filter = True, then delete all clusters that have been visited on less than min_unique_days days.
     )
 
     # Then we run the clustering and visualisation
     df = (
         c.run_clustering(
-            min_samples=200,  # The number of samples in a neighborhood for a point to be considered as a core point
-            eps=0.01,  # The maximum distance between two samples for one to be considered as in the neighborhood of the other. 0.01 = 10m
+            min_samples=min_samples,  # The number of samples in a neighborhood for a point to be considered as a core point
+            eps=eps,  # The maximum distance between two samples for one to be considered as in the neighborhood of the other. 0.01 = 10m
             algorithm="dbscan",  # Choose either 'dbscan' or 'hdbscan'. If 'hdbscan', only min_samples is required.
             # min_cluster_size=50,  # Param of HDBSCAN: the minimum size a final cluster can be. The higher this is, the bigger your clusters will be
         )
@@ -186,23 +186,27 @@ def run_clustering(df):
 
     add_log_message(f"Done with clustering")
 
-    return df
+    return df, c.fig
 
 @callback(
-    Output("log-display", "children"),
-    Output("interval-component", "n_intervals"),
+    [Output("log-display", "children"),
+    Output("interval-component", "n_intervals")],
     Input("interval-component", "n_intervals")
 )
 def update_log_display(n_intervals):
     global log_messages
-    log_texts = [html.P(msg) for msg in log_messages]
+    log_texts = "\n".join(log_messages)
     return log_texts, n_intervals
 
 # Function to add a new log message
 def add_log_message(message):
     global log_messages
-    log_messages.append(message)
+    log_messages.append(get_time() + message)
 
+def get_time():
+    now = datetime.now()
+    return now.strftime("%H:%M:%S") + ": "
+    
 
 if __name__ == '__main__':
     app.run(debug=True)
