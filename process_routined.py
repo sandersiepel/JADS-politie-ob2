@@ -18,5 +18,6 @@ import plotly.express as px
 df_original['count'] = 1
 df_resample = df_original.set_index('ZTIMESTAMP').resample('D').sum()
 
-fig = px.line(df_resample, y="count", width=1000, height=600)
-fig.show()
+# df_resample['count'].plot()
+
+# df_resample.count.plot.line()
