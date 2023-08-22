@@ -2,9 +2,10 @@ from LoadGoogleMaps import GMData
 from LoadRoutinedData import RDData
 from datetime import datetime
 import pandas as pd
+from Visualisations import EDA
 
 
-def load_data(data_source: str, begin_date: str, end_date: str, fraction: float, hours_offset: int, verbose: bool = True) -> pd.DataFrame:
+def load_data(data_source: str, begin_date: str, end_date: str, fraction: float, hours_offset: int, outputs_folder_name:str, verbose: bool = True, EDA: bool = True) -> pd.DataFrame:
     if data_source == "google_maps":
         df = GMData().df
     elif data_source == "routined":
@@ -32,6 +33,14 @@ def load_data(data_source: str, begin_date: str, end_date: str, fraction: float,
             f"Message (data loader): First record in dataset is from {str(df.iloc[0].timestamp).split('.')[0]} and last record is from {str(df.iloc[-1].timestamp).split('.')[0]}"
         )
 
+    if EDA:
+        # Perform EDA
+        if verbose:
+            print(f"Message (data loader): Performing EDA, saving plots at output/{outputs_folder_name}")
+
+        eda = EDA(data=df, outputs_folder_name=outputs_folder_name)
+        eda.records_per_day()
+        
     return df
 
 

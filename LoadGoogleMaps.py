@@ -15,7 +15,7 @@ class GMData:
 
     def load_data(self):
         try:
-            with open("data/Records.json") as json_file:
+            with open("data/RecordsMattanja.json") as json_file:
                 data = json.load(json_file)
         except FileNotFoundError:
             print(
@@ -26,7 +26,7 @@ class GMData:
         return data
 
     @staticmethod
-    def convertE7(latitudeE7, longitudeE7):
+    def convertE7(latitudeE7, longitudeE7) -> tuple:
         if latitudeE7 > 900000000:
             latitudeE7 = latitudeE7 - 4294967296
         if longitudeE7 > 1800000000:
@@ -36,13 +36,15 @@ class GMData:
 
         return (latitudeE7, longitudeE7)
 
-    def process_data(self):
-        data_processed = [
-            self.convertE7(d["latitudeE7"], d["longitudeE7"])
-            + (d["timestamp"],)
-            + (d["source"],)
-            for d in self.data["locations"]
-        ]
+    def process_data(self) -> None:
+        data_processed = []
+        for d in self.data["locations"]:
+            try:
+                converted = self.convertE7(d["latitudeE7"], d["longitudeE7"])
+                data_processed.append(converted + (d["timestamp"],) + (d["source"],))
+            except KeyError:
+                # Sometimes the "source" attribute is missing; reason unknown.
+                data_processed.append(converted + (d["timestamp"],) + ("UNKNOWN",))
 
         # Convert to DataFrame and change timestamp to datetime format
         self.df = pd.DataFrame(

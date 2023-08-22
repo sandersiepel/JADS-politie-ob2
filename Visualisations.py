@@ -9,6 +9,8 @@ from sklearn import preprocessing
 import pickle
 from collections import defaultdict
 import seaborn as sns
+import plotly.express as px
+
 
 class HeatmapVisualizer:
     def __init__(self, begin_day: str, end_day: str, df: pd.DataFrame, name: str, title: str, verbose: bool = True) -> None:
@@ -377,3 +379,19 @@ class ModelPerformanceVisualizer():
         prepare_data(self)
         make_heatmap(self)
 
+
+class EDA():
+    def __init__(self, data:pd.DataFrame, outputs_folder_name:str) -> None:
+        self.outputs_folder_name = outputs_folder_name
+        self.data = data
+
+        return None
+    
+    def records_per_day(self):
+        counts = self.data.groupby(self.data.timestamp.dt.date).size().to_frame()
+        counts.columns = ['day_count']
+        counts = counts.reset_index()
+
+        fig = px.bar(counts, x='timestamp', y='day_count')
+        fig.show()
+        fig.write_image(f"output/{self.outputs_folder_name}/EDA_records_per_day.png") 
