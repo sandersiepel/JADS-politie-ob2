@@ -82,7 +82,7 @@ def resample_df(df: pd.DataFrame, outputs_folder_name:str) -> pd.DataFrame:
     df = (
         resampled_df.reset_index()
         .drop(["begin_time", "location_id", "end_time"], axis=1)
-        .rename(columns={"index": "time"})
+        .rename(columns={"index": "timestamp"})
         .dropna(axis=0)
     )
 

@@ -392,6 +392,6 @@ class EDA():
         counts.columns = ['day_count']
         counts = counts.reset_index()
 
-        fig = px.bar(counts, x='timestamp', y='day_count')
-        fig.show()
-        fig.write_html(f"output/{self.outputs_folder_name}/EDA_records_per_day.html") 
+        self.fig = px.bar(counts, x='timestamp', y='day_count')
+        # self.fig.show()
+        self.fig.write_html(f"output/{self.outputs_folder_name}/EDA_records_per_day.html") 

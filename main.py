@@ -32,7 +32,7 @@ def main():
 
     # Step 1. Load data either from google maps or from routine-d data. Either way, df should contain the columns 'latitude',
     # 'longitude', 'and 'timestamp'.
-    df = DL.load_data(
+    df, _ = DL.load_data(
         data_source,
         begin_date,
         end_date,

@@ -5,10 +5,12 @@ from Cluster import Cluster
 import DataTransformer as DT
 from TrainAndEvaluateV2 import TrainAndEvaluate
 import pandas as pd
-from Visualisations import ModelPerformanceVisualizer
+from Visualisations import ModelPerformanceVisualizer, EDA
 from collections import deque
 import dash_bootstrap_components as dbc
 from datetime import datetime
+import plotly.express as px
+import dash
 
 
 # Initialize parameters.
@@ -27,12 +29,13 @@ horizon_size = 21
 window_step_size = 1
 outputs_folder_name = f"dash1-{training_window_size}-{horizon_size}-{window_step_size}" # All of the outputs will be placed in output/outputs_folder_name
 
-log_messages = deque(maxlen=20)  
+log_messages = deque(maxlen=5)  
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 SIDEBAR_STYLE = {
     "background-color": "#f8f9fa",
-    "padding": "20px"
+    "padding": "20px",
+    "height":"100vh"
 }
 
 CONTENT_STYLE = {
@@ -42,8 +45,34 @@ CONTENT_STYLE = {
 
 maindiv = html.Div([
     dbc.Row([
-        html.H2("Scatter mapbox"),
-        dcc.Graph(id="scatter_mapbox_graph")
+        # This row contains the cards for EDA (scatter mapbox, records per day)
+        # html.H2("Scatter mapbox"),
+        # dcc.Graph(id="scatter_mapbox_graph"),
+        html.H2("EDA"),
+        html.P("The tabs below contain results of the clustering steps. The first tap contains a scattermapbox with the raw data and the results of the clustering, indicated by red circles. The second tap contains a graph with the number of data points per day. "),
+        # dcc.Graph(id="counts_per_day")
+        dbc.Tabs(
+            [
+                dbc.Tab(dbc.Card(
+                    dbc.CardBody(
+                        [
+                            dcc.Graph(id="scatter_mapbox_graph"),
+                        ]
+                    ), className="border-0"
+                ), label="Scatter Mapbox"),
+                dbc.Tab(dbc.Card(
+                    dbc.CardBody(
+                        [
+                            dcc.Graph(id="counts_per_day"),
+                        ]
+                    ), className="border-0"
+                ), label="Records Per Day"),
+                dbc.Tab(
+                    "This tab's content is never seen", label="Tab 3"
+                ),
+            ], style={"margin-left":"10px"}
+        )
+
     ], style={"min-height": "50px", "padding-bottom": "50px"}),
     dbc.Row([
         html.H2("Predicting"),
@@ -71,84 +100,92 @@ sidebar = html.Div(
         dbc.Input(id='min_unique_days', type='text', value=1),
         html.Br(),
 
-        dbc.Button('Run Pipeline', id='submit-val', n_clicks=0, color="primary", className="me-1", style={"width":"100%"}),
+        dbc.Button('Run Clustering', id='submit-val', n_clicks=0, color="primary", className="me-1", style={"width":"100%"}),
 
         # Elements for log messages.
         html.Div(id='container-button-basic', style={"margin-top":"10px"}),
         dcc.Interval(id='interval-component', interval=1000, n_intervals=0),  # Update every 2 seconds
-        dcc.Markdown(id="log-display", style={"whiteSpace":"pre-wrap"})
+        dcc.Markdown(id="log-display", style={"whiteSpace":"pre-wrap"}),
+
+        html.Div(id="output"), # For chaining output of function 
+        dcc.Store(id='data-store'),
+        dcc.Store(id='data-store2'),
     ],
     style=SIDEBAR_STYLE,
 )
 
 app.layout = html.Div([
     dbc.Row([
-        dbc.Col(sidebar, width=3), 
-        dbc.Col(maindiv, width=9) 
+        dbc.Col(sidebar, width=3, className="position-fixed", style={}), 
+        dbc.Col(maindiv, width=9, className="offset-3") 
     ])
 ])
 
+
 @callback(
-    Output('scatter_mapbox_graph', 'figure'),
-    [Input('submit-val', 'n_clicks'),
+    Output('counts_per_day', 'figure'),
+    Input('submit-val', 'n_clicks'),
+)
+def run_eda(n_clicks):
+    if n_clicks <= 0:
+        return dash.no_update
+    
+    df, fig = DL.load_data(
+        data_source,
+        begin_date,
+        end_date,
+        fraction,
+        hours_offset,
+        outputs_folder_name=outputs_folder_name,
+        verbose=True,
+        perform_eda=True
+    )
+
+    return fig
+    
+
+@callback(
+    [Output('scatter_mapbox_graph', 'figure'),
+    Output('data-store2', 'data')],
+    [Input('counts_per_day', 'figure'),
+    State('submit-val', 'n_clicks'),
     State('min_samples', 'value'),
     State('eps', 'value'),
-    State('min_unique_days', 'value')]
+    State('min_unique_days', 'value')]  
 )
-def run_pipeline(n_clicks, min_samples, eps, min_unique_days):
-    if n_clicks > 0:
-        
-        # Step 1. Load data
-        add_log_message("Loading data")
+def run_pipeline(prev_figure, n_clicks, min_samples, eps, min_unique_days):
+    if n_clicks <= 0:
+        return dash.no_update
+    
+    add_log_message(f"Running pipeline")
 
-        df = DL.load_data(
-            data_source,
-            begin_date,
-            end_date,
-            fraction,
-            hours_offset,
-            verbose=True,
-        )
+    df, _ = DL.load_data(
+        data_source,
+        begin_date,
+        end_date,
+        fraction,
+        hours_offset,
+        outputs_folder_name=outputs_folder_name,
+        verbose=True,
+        perform_eda=True
+    )
 
-        add_log_message(f"Loaded the data with size: {len(df)}")
+    # Step 1. Load data
+    add_log_message(f"Loaded the data with size: {len(df)}")
 
-        # Step 2. Run clustering. Returns df and a fig with a scattermapbox. 
-        df, fig = run_clustering(df, int(min_samples), float(eps), int(min_unique_days))
-        # fig = fig.update_layout()
+    # Step 2. Run clustering. Returns df and a fig with a scattermapbox. 
+    df, fig = run_clustering(df, int(min_samples), float(eps), int(min_unique_days))
+    # fig = fig.update_layout()
 
-        # Step 3. Transform data
-        add_log_message(f"Transforming and resampling the dataset")
-        df = DT.transform_start_end_times(df, outputs_folder_name, fill_gaps=True)
+    # Step 3. Transform data
+    add_log_message(f"Transforming and resampling the dataset")
+    df = DT.transform_start_end_times(df, outputs_folder_name, fill_gaps=True)
 
-        # Step 4. Resample dataset. This saves the data at output/outputs_folder_name/resampled_df_10_min.xlsx.
-        df = DT.resample_df(df, outputs_folder_name)
-        add_log_message(f"Done, saving datasets at output/{outputs_folder_name}")
+    # Step 4. Resample dataset. This saves the data at output/outputs_folder_name/resampled_df_10_min.xlsx.
+    df = DT.resample_df(df, outputs_folder_name)
+    add_log_message(f"Done, saving datasets at output/{outputs_folder_name}")
 
-        # # Step 5. Train models and save performance
-        # add_log_message(f"Training and evaluating the model performance")
-        # scores, _ = TrainAndEvaluate(
-        #     df = df,
-        #     outputs_folder_name=outputs_folder_name,
-        #     start_date = pd.to_datetime(f"{begin_date} 00:00:00"),
-        #     end_date = pd.to_datetime(f"{end_date} 23:50:00"),
-        #     training_window_size = training_window_size,
-        #     horizon_size = horizon_size,
-        #     window_step_size = window_step_size,
-        #     model_features = ["day", "hour", "weekday", "window_block"],
-        # ).main()
-
-        # # Step 6. Visualize performance and save images
-        # add_log_message(f"Visualizing model performance")
-        # ModelPerformanceVisualizer(
-        #     scores=scores,
-        #     outputs_folder_name=outputs_folder_name
-        # )
-
-        # add_log_message(f"Pipeline finished!")
-        # return "Pipeline finished!"    
-        return fig
-    else:
-        return {}
+    return fig, df.to_dict('records')
 
 
 def run_clustering(df, min_samples, eps, min_unique_days):

@@ -44,7 +44,7 @@ def load_data(data_source: str, begin_date: str, end_date: str, fraction: float,
         e = EDA(data=df, outputs_folder_name=outputs_folder_name)
         e.records_per_day()
 
-    return df
+    return df, e.fig
 
 
 def filter_data(df: bool, begin_date: str, end_date: str, fraction: float) -> pd.DataFrame:
