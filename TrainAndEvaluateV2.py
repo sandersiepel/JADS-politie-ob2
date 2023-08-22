@@ -114,24 +114,24 @@ class TrainAndEvaluate:
         return self.df
 
     def filter_data(self) -> None:
-        self.df = self.df[self.df["time"].between(self.start_date, self.end_date)]
+        self.df = self.df[self.df["timestamp"].between(self.start_date, self.end_date)]
 
         print(
-            f"Message (ML filter): after filtering we have {len(self.df)} records (with 10-minute intervals), starting at {str(self.df.iloc[0].time)} and ending at {str(self.df.iloc[-1].time)}."
+            f"Message (ML filter): after filtering we have {len(self.df)} records (with 10-minute intervals), starting at {str(self.df.iloc[0].timestamp)} and ending at {str(self.df.iloc[-1].timestamp)}."
         )
 
     def make_temporal_features(self) -> None:
         if "day" in self.model_features:
-            self.df["day"] = self.df["time"].dt.day
+            self.df["day"] = self.df["timestamp"].dt.day
 
         if "weekday" in self.model_features:
-            self.df["weekday"] = self.df["time"].dt.dayofweek
+            self.df["weekday"] = self.df["timestamp"].dt.dayofweek
 
         if "hour" in self.model_features:
-            self.df["hour"] = self.df["time"].dt.hour
+            self.df["hour"] = self.df["timestamp"].dt.hour
 
         if "window_block" in self.model_features:
-            self.df["window_block"] = ((self.df['time'].dt.minute * 60 + self.df['time'].dt.second) // 600).astype(int)
+            self.df["window_block"] = ((self.df['timestamp'].dt.minute * 60 + self.df['timestamp'].dt.second) // 600).astype(int)
 
     def make_train_test_split(self) -> None:
         """ This function defines the begin and end times for the training/testing sets. After that, it defines X_train, y_train, X_test, y_test. 
@@ -147,8 +147,8 @@ class TrainAndEvaluate:
         self.test_start_date = self.train_end_date + pd.Timedelta(minutes=10)
         self.test_end_date = self.test_start_date + pd.Timedelta(days=self.horizon_size-1, hours=23, minutes=50)
 
-        self.train_mask = self.df["time"].between(self.train_start_date, self.train_end_date)
-        self.test_mask = self.df["time"].between(self.test_start_date, self.test_end_date)
+        self.train_mask = self.df["timestamp"].between(self.train_start_date, self.train_end_date)
+        self.test_mask = self.df["timestamp"].between(self.test_start_date, self.test_end_date)
 
         # Split the data into train and test sets
         self.X_train = self.df.loc[self.train_mask, self.model_features]

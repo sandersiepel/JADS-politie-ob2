@@ -15,7 +15,7 @@ class GMData:
 
     def load_data(self):
         try:
-            with open("data/RecordsMattanja.json") as json_file:
+            with open("data/Records.json") as json_file:
                 data = json.load(json_file)
         except FileNotFoundError:
             print(
@@ -54,18 +54,6 @@ class GMData:
         # Four options:
         self.df["timestamp"] = pd.to_datetime(
             self.df["timestamp"], infer_datetime_format=True
-        )  # , format="%Y-%m-%dT%H:%M:%S"
-
-        # self.df["timestamp"] = pd.to_datetime(
-        #     self.df["timestamp"], format="%Y-%m-%dT%H:%M:%S.%fZ"
-        # )
-
-        # self.df["timestamp"] = pd.to_datetime(
-        #     self.df["timestamp"], format="%Y-%m-%dT%H:%M:%SZ"
-        # )
-
-        # self.df["timestamp"] = pd.to_datetime(
-        #     self.df["timestamp"], format="%Y-%m-%dT%H:%M:%S.%f"
-        # )
+        )
 
         self.df["timestamp"] = self.df["timestamp"].dt.tz_localize(None)
