@@ -46,9 +46,6 @@ class Cluster:
         self.centroid_k = centroid_k
         self.min_unique_days = min_unique_days
 
-        # Create output folder, if necessary.
-        os.makedirs(f"output/{outputs_folder_name}", exist_ok=True)
-
         # Run init functions
         if self.pre_filter:
             self._apply_pre_filters()

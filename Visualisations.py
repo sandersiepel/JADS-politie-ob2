@@ -394,4 +394,4 @@ class EDA():
 
         fig = px.bar(counts, x='timestamp', y='day_count')
         fig.show()
-        fig.write_image(f"output/{self.outputs_folder_name}/EDA_records_per_day.png") 
+        fig.write_html(f"output/{self.outputs_folder_name}/EDA_records_per_day.html") 
