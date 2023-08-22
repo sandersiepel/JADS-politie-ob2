@@ -123,7 +123,8 @@ app.layout = html.Div([
 
 
 @callback(
-    Output('counts_per_day', 'figure'),
+    [Output('counts_per_day', 'figure'),
+    Output('data-store', 'data')],
     Input('submit-val', 'n_clicks'),
 )
 def run_eda(n_clicks):
@@ -141,34 +142,27 @@ def run_eda(n_clicks):
         perform_eda=True
     )
 
-    return fig
+    return fig, df.to_dict('records')
     
 
 @callback(
     [Output('scatter_mapbox_graph', 'figure'),
     Output('data-store2', 'data')],
     [Input('counts_per_day', 'figure'),
+    Input('data-store', 'data'),
     State('submit-val', 'n_clicks'),
     State('min_samples', 'value'),
     State('eps', 'value'),
     State('min_unique_days', 'value')]  
 )
-def run_pipeline(prev_figure, n_clicks, min_samples, eps, min_unique_days):
+def run_pipeline(prev_figure, df, n_clicks, min_samples, eps, min_unique_days):
     if n_clicks <= 0:
         return dash.no_update
     
-    add_log_message(f"Running pipeline")
+    df = pd.DataFrame(df)
+    df['timestamp'] = pd.to_datetime(df['timestamp'])
 
-    df, _ = DL.load_data(
-        data_source,
-        begin_date,
-        end_date,
-        fraction,
-        hours_offset,
-        outputs_folder_name=outputs_folder_name,
-        verbose=True,
-        perform_eda=True
-    )
+    add_log_message(f"Running pipeline")
 
     # Step 1. Load data
     add_log_message(f"Loaded the data with size: {len(df)}")
