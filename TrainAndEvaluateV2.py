@@ -12,6 +12,7 @@ from tqdm import tqdm
 import math
 import numpy as np
 from Visualisations import ModelPerformanceVisualizer
+import os
 
 warnings.filterwarnings("ignore", category=sklearn.exceptions.UndefinedMetricWarning)
 warnings.filterwarnings(action='ignore', message='Mean of empty slice')
@@ -38,6 +39,8 @@ class TrainAndEvaluate:
 
         # The self.performance dict contains, for each training size and each validation loop, the accuracy scores for all the days that were predicted (where number of days = (max_n_testing_days - min_n_testing_days))
         self.performance, self.baseline_performance = defaultdict(dict), defaultdict(dict)
+
+        os.makedirs(f"output/{outputs_folder_name}", exist_ok=True)
 
     def main(self):
         # Step 1. Load dataset.
@@ -136,24 +139,32 @@ class TrainAndEvaluate:
     def make_train_test_split(self) -> None:
         """ This function defines the begin and end times for the training/testing sets. After that, it defines X_train, y_train, X_test, y_test. 
         Before making the train/test split, we might want to drop 1 or more features, based on the length of the training data (in days):
-            - If length of training data <= 30, delete the "day" feature
-            - if length of training data <= 7, delete the "weekday" feature
+            - If length of training data <= 61, delete the "day" feature
+            - if length of training data <= 13, delete the "weekday" feature
+            - if length of training data <= 1, delete the "hour" feature
         """        
-
-        # TODO: delete features
 
         self.train_start_date = self.start_date + pd.Timedelta(days=self.offset_days+(self.block_index * self.window_step_size)+self.train_index)
         self.train_end_date = self.train_start_date + pd.Timedelta(days=(self.training_window_size-1)-self.train_index, hours=23, minutes=50)
         self.test_start_date = self.train_end_date + pd.Timedelta(minutes=10)
         self.test_end_date = self.test_start_date + pd.Timedelta(days=self.horizon_size-1, hours=23, minutes=50)
 
+        n_days = (self.train_end_date - self.train_start_date).days + 1 # Add one since one day is 23 hours and 50 minutes 
+        features = self.model_features.copy()
+        if n_days <= 61 and "day" in features:
+            features.remove("day")
+        if n_days <= 13 and "weekday" in features:
+            features.remove("weekday")
+        if n_days <= 1 and "hour" in features:
+            features.remove("hour")
+
         self.train_mask = self.df["timestamp"].between(self.train_start_date, self.train_end_date)
         self.test_mask = self.df["timestamp"].between(self.test_start_date, self.test_end_date)
 
-        # Split the data into train and test sets
-        self.X_train = self.df.loc[self.train_mask, self.model_features]
+        # Split the data into train and test sets 
+        self.X_train = self.df.loc[self.train_mask, features]
         self.y_train = self.df.loc[self.train_mask, "location"]
-        self.X_test = self.df.loc[self.test_mask, self.model_features]
+        self.X_test = self.df.loc[self.test_mask, features]
         self.y_test = self.df.loc[self.test_mask, "location"]
 
         # print(f"Block {self.block_index}, train size: {self.train_index}. Training: {self.train_start_date}-{self.train_end_date}, testing: {self.test_start_date}-{self.test_end_date}.")
@@ -222,26 +233,29 @@ class TrainAndEvaluate:
 # # which means that we need to offset it by 2 hours to make it GMT+2 (Dutch timezone). Value must be INT!
 # hours_offset = 2 # Should be 0 for routined and 2 for google_maps. 
 # # begin_date and end_date are used to filter the data for your analysis.
-# begin_date = "2022-10-01"
-# end_date = "2023-05-01"  # End date is INclusive! 
+# begin_date = "2016-01-01"
+# end_date = "2016-12-31"  # End date is INclusive! 
 # # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
 # fraction = 1
 # # For the model performance class we need to specify the number of training days (range) and testing horizon (also in days)
-# training_window_size = 30
-# horizon_size = 10
+# training_window_size = 100
+# horizon_size = 30
 # window_step_size = 1
+# outputs_folder_name = f"2016-{training_window_size}-{horizon_size}-{window_step_size}" # All of the outputs will be placed in output/outputs_folder_name
+
 
 # from Visualisations import ModelPerformanceVisualizer
 
-# # scores, baseline_scores = TrainAndEvaluate(
-# #         df = None,
-# #         start_date = pd.to_datetime(f"{begin_date} 00:00:00"),
-# #         end_date = pd.to_datetime(f"{end_date} 23:50:00"),
-# #         training_window_size = training_window_size,
-# #         horizon_size = horizon_size,
-# #         window_step_size = window_step_size,
-# #         model_features = ["day", "weekday", "hour", "window_block"],
-# #     ).main()
+# scores, _ = TrainAndEvaluate(
+#         df = None,
+#         outputs_folder_name=outputs_folder_name,
+#         start_date = pd.to_datetime(f"{begin_date} 00:00:00"),
+#         end_date = pd.to_datetime(f"{end_date} 23:50:00"),
+#         training_window_size = training_window_size,
+#         horizon_size = horizon_size,
+#         window_step_size = window_step_size,
+#         model_features = ["day", "hour", "weekday", "window_block"],
+#     ).main()
 
 # # Step 8. Visualize model performance. Input: 'scores', which is a dict. 
 # ModelPerformanceVisualizer(

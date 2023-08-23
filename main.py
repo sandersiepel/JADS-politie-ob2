@@ -12,7 +12,7 @@ data_source = "google_maps"  # Can be either 'google_maps' or 'routined'.
 # which means that we need to offset it by 2 hours to make it GMT+2 (Dutch timezone). Value must be INT!
 hours_offset = 2 # Should be 0 for routined and 2 for google_maps. 
 # begin_date and end_date are used to filter the data for your analysis.
-begin_date = "2017-01-01"
+begin_date = "2017-06-01"
 end_date = "2017-12-31"  # End date is INclusive! 
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
 fraction = 0.5
@@ -24,7 +24,7 @@ heatmap_end_date = "2023-05-28"  # End date is INclusive! Choose a date that lie
 training_window_size = 100
 horizon_size = 30
 window_step_size = 1
-outputs_folder_name = f"sander2017-{training_window_size}-{horizon_size}-{window_step_size}" # All of the outputs will be placed in output/outputs_folder_name
+outputs_folder_name = f"sander2017-2-{training_window_size}-{horizon_size}-{window_step_size}" # All of the outputs will be placed in output/outputs_folder_name
 
 
 def main():
@@ -100,7 +100,7 @@ def main():
         training_window_size = training_window_size,
         horizon_size = horizon_size,
         window_step_size = window_step_size,
-        model_features = ["day", "hour", "weekday", "window_block"],
+        model_features = ["hour", "weekday", "window_block"],
     ).main()
 
     # Step 8. Visualize model performance. Input: 'scores', which is a dict. 
