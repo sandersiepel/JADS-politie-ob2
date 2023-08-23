@@ -7,6 +7,9 @@ import pandas as pd
 # 	pkl_file_name="model_performances"
 # )
 
-import pathlib
-import os
+varr = 13
 
+def my_func():
+    print(varr)
+
+my_func()

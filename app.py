@@ -19,8 +19,8 @@ data_source = "google_maps"  # Can be either 'google_maps' or 'routined'.
 # which means that we need to offset it by 2 hours to make it GMT+2 (Dutch timezone). Value must be INT!
 hours_offset = 2 # Should be 0 for routined and 2 for google_maps. 
 # begin_date and end_date are used to filter the data for your analysis.
-begin_date = "2016-01-01"
-end_date = "2016-12-31"  # End date is INclusive! 
+begin_date = "2023-01-01"
+end_date = "2023-12-31"  # End date is INclusive! 
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
 fraction = 1
 # For the model performance class we need to specify the number of training days (range) and testing horizon (also in days)
@@ -29,7 +29,7 @@ horizon_size = 30
 window_step_size = 1
 outputs_folder_name = f"2016-{training_window_size}-{horizon_size}-{window_step_size}" # All of the outputs will be placed in output/outputs_folder_name
 
-log_messages = deque(maxlen=5)  
+log_messages = deque(maxlen=10)  
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 SIDEBAR_STYLE = {
@@ -105,9 +105,9 @@ sidebar = html.Div(
         dbc.Button('Run Clustering', id='submit-val', n_clicks=0, color="primary", className="me-1", style={"width":"100%"}),
 
         # Elements for log messages.
-        html.Div(id='container-button-basic', style={"margin-top":"10px"}),
+        # html.Div(id='container-button-basic', style={"margin-top":"10px", "overflow":"auto", "height":"400px"}),
         dcc.Interval(id='interval-component', interval=1000, n_intervals=0),  # Update every 2 seconds
-        dcc.Markdown(id="log-display", style={"whiteSpace":"pre-wrap"}),
+        html.Div(id="log-display", style={"whiteSpace":"pre-wrap", "padding-top":"15px", "height":"100%", "overflow":"auto"}),
 
         html.Div(id="output"), # For chaining output of function 
         dcc.Store(id='data-store'),
@@ -222,18 +222,15 @@ def run_clustering(df, min_samples, eps, min_unique_days):
     return df, c.fig
 
 @callback(
-    [Output("log-display", "children"),
-    Output("interval-component", "n_intervals")],
+    Output("log-display", "children"),
     Input("interval-component", "n_intervals")
 )
 def update_log_display(n_intervals):
-    global log_messages
     log_texts = "\n".join(log_messages)
-    return log_texts, n_intervals
+    return log_texts
 
 # Function to add a new log message
 def add_log_message(message):
-    global log_messages
     log_messages.append(get_time() + message)
 
 def get_time():
