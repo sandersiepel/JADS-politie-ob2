@@ -66,7 +66,6 @@ def main():
         )
         .plot_clusters(
             filter_noise=False,  # Remove the -1 labels (i.e., noise) before plotting the clusters
-            only_include_clusters=[],  # Add clusters if you want to filter which clusters to show in the visualization.
         )
         .add_locations_to_original_dataframe(
             export_xlsx=False,  # Export the dataframe to excel file? Useful for analyzing.

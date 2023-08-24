@@ -554,7 +554,7 @@ class Cluster:
         if not "id" in self.df.columns:
             self.df["id"] = self.df.index
 
-    def plot_clusters(self, filter_noise: bool = False, only_include_clusters: list = []) -> Cluster:
+    def plot_clusters(self, filter_noise: bool = False) -> Cluster:
         """This function creates a plotly scatter_mapbox that shows the different clusters. This requires
         the columns df.cluster and df.id to be present.
 
@@ -565,53 +565,45 @@ class Cluster:
 
         """
 
-        # Add the columns: "id" and "cluster"
-        self._prep_df_for_plotting()
+        # We need a "id" column for plotting, so adding it if it doesn't exist yet.
+        if not "id" in self.df.columns:
+            self.df["id"] = self.df.index
 
-        if filter_noise:
-            self.df = self.df[self.df.cluster != "-1"]
-
-        # We can also use this function to plot just one/a few clusters. Based on that requirement, filter the data to be plotted
-        if len(only_include_clusters) > 0:
-            df_plot = self.df[self.df.cluster.isin(only_include_clusters)]
-            df_centroids_plot = self.df_centroids[
-                self.df_centroids.cluster.isin(only_include_clusters)
-            ]
-            center = dict(
-                lon=df_plot[
-                    df_plot.cluster == only_include_clusters[0]
-                ].longitude.mean(),
-                lat=df_plot[
-                    df_plot.cluster == only_include_clusters[0]
-                ].latitude.mean(),
-            )
-        else:
-            df_plot = self.df
-            df_centroids_plot = self.df_centroids
-            center = dict(lon=5.306626, lat=51.726934)
+        # if filter_noise:
+        #     self.df = self.df[self.df.cluster != "-1"]
 
         # We don't always have the source value, but if we do, add it to the tooltip hover data.
-        hover_data = ["timestamp", "timestamp"]
+        hover_data = ["timestamp"]
         if "source" in self.df.columns:
             hover_data.append("source")
 
+        # The location labels are generally quite long, so we only take the first two elements (which is almost always the street address and house number).
+        self.df["location"] = (
+            self.df["location"].str.split(",").str[1]
+            + ", "
+            + self.df["location"].str.split(",").str[0]
+        )
+
         self.fig = px.scatter_mapbox(
-            df_plot,
+            self.df,
             lat="latitude",
             lon="longitude",
             zoom=16,
-            # height=600,
-            # width=960,
-            color="cluster",
+            color="location",
             hover_name="id",
             hover_data=hover_data,
-            center=center,
+            center=dict(lon=5.306626, lat=51.726934), # TODO: take centroid of biggest cluster.
         )
 
-        # Add the cluster centroids that are stored in self.df_centroids
+        # Delete the last row in df_centroids (which is the placeholder row for the noise datapoints, which was added in add_locations_to_original_dataframe())
+        self.df_centroids = self.df_centroids[:-1]
+
+        print(self.df_centroids.head(20))
+
+        # Now we add the cluster centroids from self.df_centroids to the visualization.
         self.fig.add_trace(
             px.scatter_mapbox(
-                df_centroids_plot,
+                self.df_centroids,
                 lat="latitude",
                 lon="longitude",
                 hover_name="location",
@@ -639,6 +631,9 @@ class Cluster:
             self
 
         """
+
+        # Here we add one row manually since we want to keep the "noise" datapoints after the merge. These data points are now merged with the location "no cluster, noise".
+        self.df_centroids.loc[len(self.df_centroids)] = [0, 0, "-1", 10, "black", "no cluster, Noise", 0, 0, 0]
 
         self.df = pd.merge(
             self.df, self.df_centroids[["cluster", "location"]], on="cluster"

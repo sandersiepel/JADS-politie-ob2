@@ -27,7 +27,7 @@ fraction = 1
 training_window_size = 100
 horizon_size = 30
 window_step_size = 1
-outputs_folder_name = f"2016-{training_window_size}-{horizon_size}-{window_step_size}" # All of the outputs will be placed in output/outputs_folder_name
+outputs_folder_name = f"test-{training_window_size}-{horizon_size}-{window_step_size}" # All of the outputs will be placed in output/outputs_folder_name
 
 log_messages = deque(maxlen=10)  
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -52,6 +52,9 @@ maindiv = html.Div([
         html.P("The tabs below contain results of the clustering steps. The first tap contains a scattermapbox with the raw data and the results of the clustering, indicated by red circles. The second tap contains a graph with the number of data points per day. "),
         # dcc.Graph(id="counts_per_day")
         dbc.Tabs(
+            id="eda-tabs",
+            active_tab="tab-1",
+            children=
             [
                 dbc.Tab(dbc.Card(
                     dbc.CardBody(
@@ -59,7 +62,7 @@ maindiv = html.Div([
                             dcc.Graph(id="counts_per_day"),
                         ]
                     ), className="border-0"
-                ), label="Records Per Day"),
+                ), label="Records Per Day", tab_id="tab-1"),
                 
                 dbc.Tab(dbc.Card(
                     dbc.CardBody(
@@ -67,11 +70,7 @@ maindiv = html.Div([
                             dcc.Graph(id="scatter_mapbox_graph"),
                         ]
                     ), className="border-0"
-                ), label="Scatter Mapbox"),
-                
-                dbc.Tab(
-                    "This tab's content is never seen", label="Tab 3"
-                ),
+                ), label="Scatter Mapbox", tab_id="tab-2"),
             ], style={"margin-left":"10px"}
         )
 
@@ -106,7 +105,7 @@ sidebar = html.Div(
 
         # Elements for log messages.
         # html.Div(id='container-button-basic', style={"margin-top":"10px", "overflow":"auto", "height":"400px"}),
-        dcc.Interval(id='interval-component', interval=1000, n_intervals=0),  # Update every 2 seconds
+        dcc.Interval(id='interval-component', interval=300, n_intervals=0),  # Update every 2 seconds
         html.Div(id="log-display", style={"whiteSpace":"pre-wrap", "padding-top":"15px", "height":"100%", "overflow":"auto"}),
 
         html.Div(id="output"), # For chaining output of function 
@@ -124,7 +123,7 @@ app.layout = html.Div([
 ])
 
 
-@callback(
+@app.callback(
     [Output('counts_per_day', 'figure'),
     Output('data-store', 'data')],
     Input('submit-val', 'n_clicks'),
@@ -133,6 +132,8 @@ def run_eda(n_clicks):
     if n_clicks <= 0:
         return dash.no_update
     
+    add_log_message(f"Loading the dataset...")
+
     df, fig = DL.load_data(
         data_source,
         begin_date,
@@ -144,12 +145,15 @@ def run_eda(n_clicks):
         perform_eda=True
     )
 
+    add_log_message(f"Loaded the data with size: {len(df)}")
+
     return fig, df.to_dict('records')
     
 
-@callback(
+@app.callback(
     [Output('scatter_mapbox_graph', 'figure'),
-    Output('data-store2', 'data')],
+    Output('data-store2', 'data'), 
+    Output('eda-tabs', 'active_tab')],
     [Input('counts_per_day', 'figure'),
     Input('data-store', 'data'),
     State('submit-val', 'n_clicks'),
@@ -157,7 +161,7 @@ def run_eda(n_clicks):
     State('eps', 'value'),
     State('min_unique_days', 'value')]  
 )
-def run_pipeline(prev_figure, df, n_clicks, min_samples, eps, min_unique_days):
+def run_pipeline(_, df, n_clicks, min_samples, eps, min_unique_days):
     if n_clicks <= 0:
         return dash.no_update
     
@@ -165,9 +169,6 @@ def run_pipeline(prev_figure, df, n_clicks, min_samples, eps, min_unique_days):
     df['timestamp'] = pd.to_datetime(df['timestamp'])
 
     add_log_message(f"Running pipeline")
-
-    # Step 1. Load data
-    add_log_message(f"Loaded the data with size: {len(df)}")
 
     # Step 2. Run clustering. Returns df and a fig with a scattermapbox. 
     df, fig = run_clustering(df, int(min_samples), float(eps), int(min_unique_days))
@@ -181,7 +182,7 @@ def run_pipeline(prev_figure, df, n_clicks, min_samples, eps, min_unique_days):
     df = DT.resample_df(df, outputs_folder_name)
     add_log_message(f"Done, saving datasets at output/{outputs_folder_name}")
 
-    return fig, df.to_dict('records')
+    return fig, df.to_dict('records'), "tab-2"
 
 
 def run_clustering(df, min_samples, eps, min_unique_days):
@@ -206,13 +207,12 @@ def run_clustering(df, min_samples, eps, min_unique_days):
             algorithm="dbscan",  # Choose either 'dbscan' or 'hdbscan'. If 'hdbscan', only min_samples is required.
             # min_cluster_size=50,  # Param of HDBSCAN: the minimum size a final cluster can be. The higher this is, the bigger your clusters will be
         )
-        .plot_clusters(
-            filter_noise=False,  # Remove the -1 labels (i.e., noise) before plotting the clusters
-            only_include_clusters=[],  # Add clusters if you want to filter which clusters to show in the visualization.
-        )
         .add_locations_to_original_dataframe(
             export_xlsx=False,  # Export the dataframe to excel file? Useful for analyzing.
             name="test",
+        )
+        .plot_clusters(
+            filter_noise=False,  # Remove the -1 labels (i.e., noise) before plotting the clusters
         )
         .df  # These functions return 'self' so we can chain them and easily access the df attribute (for input to further modeling/visualization).
     )
@@ -221,7 +221,7 @@ def run_clustering(df, min_samples, eps, min_unique_days):
 
     return df, c.fig
 
-@callback(
+@app.callback(
     Output("log-display", "children"),
     Input("interval-component", "n_intervals")
 )
