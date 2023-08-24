@@ -30,7 +30,7 @@ class HeatmapVisualizer:
         self.end_day = end_day
 
         # Filter the full dataset based on begin- and endday.
-        self.df = df.set_index("time").loc[self.begin_day : self.end_day]
+        self.df = df.set_index("timestamp").loc[self.begin_day : self.end_day]
 
         # Optionally, print some info for debugging purposes.
         if self.verbose:
@@ -66,18 +66,18 @@ class HeatmapVisualizer:
                 raise TypeError("Make sure that df is a pd.DataFrame!")
 
             # Check if df contains both columns 'time' and 'location'.
-            if not "time" in df or not "location" in df:
+            if not "timestamp" in df or not "location" in df:
                 raise ValueError(
-                    "Make sure that df contains both the columns 'time' (datetime) and 'location' (strings of locations)!"
+                    "Make sure that df contains both the columns 'timestamp' (datetime) and 'location' (strings of locations)!"
                 )
 
             # Check if df.time is of type datetime64[ns] and that df.location is of type
             if (
-                not df["time"].dtypes == "datetime64[ns]"
+                not df["timestamp"].dtypes == "datetime64[ns]"
                 or not df["location"].dtypes == "object"
             ):
                 raise TypeError(
-                    "Make sure that df.time is of dtype datetime64[ns] and df.location is of dtype object!"
+                    "Make sure that df.timestamp is of dtype datetime64[ns] and df.location is of dtype object!"
                 )
 
         except ValueError as ve:
@@ -107,7 +107,7 @@ class HeatmapVisualizer:
         self.ax.set_title(
             f"{self.title}. Location history of Significant Locations (\u0394t = 10min) from {self.begin_day} 00:00 to {self.end_day} 23:50"
         )
-        self.ax.set_xlabel("Time")
+        self.ax.set_xlabel("Timestamp")
         self.fig.savefig(f"output/{self.name}.png", dpi=1000)
         print(
             f"Message (heatmap visualizer): Succesfully downloaded heatmap to output/{self.name}.png."
@@ -157,14 +157,14 @@ class HeatmapVisualizer:
     def make_y_axis_labels(self) -> list:
         """Here we calculate which dates are included in our dataset and we add the weekday to it. These serve as our y-axis labels that we set in self.set_y_ticks()."""
         days = pd.DataFrame(self.df.index.strftime("%m/%d/%Y").unique())
-        days.time = pd.to_datetime(days.time)
-        days["weekday"] = days.time.dt.day_name()
+        days.timestamp = pd.to_datetime(days.timestamp)
+        days["weekday"] = days.timestamp.dt.day_name()
         return list(
             reversed(
                 [
                     "{}, {}".format(a_, b_)
                     for a_, b_ in zip(
-                        days.time.dt.strftime("%Y/%m/%d").values.tolist(),
+                        days.timestamp.dt.strftime("%Y/%m/%d").values.tolist(),
                         days.weekday.values.tolist(),
                     )
                 ]

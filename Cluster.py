@@ -565,6 +565,9 @@ class Cluster:
 
         """
 
+        # TODO: perhaps add the area of the buildings as well via the "geojson": https://nominatim.openstreetmap.org/search?q=51.70044779735723,%205.3269376918319&polygon_geojson=1&format=json
+        # possibly use osmnx for this.
+
         # We need a "id" column for plotting, so adding it if it doesn't exist yet.
         if not "id" in self.df.columns:
             self.df["id"] = self.df.index
@@ -592,13 +595,11 @@ class Cluster:
             color="location",
             hover_name="id",
             hover_data=hover_data,
-            center=dict(lon=5.306626, lat=51.726934), # TODO: take centroid of biggest cluster.
+            center=dict(lon=self.df_centroids.loc[0].longitude, lat=self.df_centroids.loc[0].latitude), # TODO: take centroid of biggest cluster.
         )
 
         # Delete the last row in df_centroids (which is the placeholder row for the noise datapoints, which was added in add_locations_to_original_dataframe())
         self.df_centroids = self.df_centroids[:-1]
-
-        print(self.df_centroids.head(20))
 
         # Now we add the cluster centroids from self.df_centroids to the visualization.
         self.fig.add_trace(
@@ -634,6 +635,7 @@ class Cluster:
 
         # Here we add one row manually since we want to keep the "noise" datapoints after the merge. These data points are now merged with the location "no cluster, noise".
         self.df_centroids.loc[len(self.df_centroids)] = [0, 0, "-1", 10, "black", "no cluster, Noise", 0, 0, 0]
+        self.df_centroids.sort_values(by='num_datapoints', inplace=True, ascending=False)
 
         self.df = pd.merge(
             self.df, self.df_centroids[["cluster", "location"]], on="cluster"

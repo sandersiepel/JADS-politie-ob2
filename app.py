@@ -11,6 +11,7 @@ import dash_bootstrap_components as dbc
 from datetime import datetime
 import plotly.express as px
 import dash
+from datetime import date
 
 
 # Initialize parameters.
@@ -20,20 +21,20 @@ data_source = "google_maps"  # Can be either 'google_maps' or 'routined'.
 hours_offset = 2 # Should be 0 for routined and 2 for google_maps. 
 # begin_date and end_date are used to filter the data for your analysis.
 begin_date = "2023-01-01"
-end_date = "2023-12-31"  # End date is INclusive! 
+end_date = "2023-08-01"  # End date is INclusive! 
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
 fraction = 1
 # For the model performance class we need to specify the number of training days (range) and testing horizon (also in days)
 training_window_size = 100
 horizon_size = 30
 window_step_size = 1
-outputs_folder_name = f"test-{training_window_size}-{horizon_size}-{window_step_size}" # All of the outputs will be placed in output/outputs_folder_name
+outputs_folder_name = f"martijn-{training_window_size}-{horizon_size}-{window_step_size}" # All of the outputs will be placed in output/outputs_folder_name
 
 log_messages = deque(maxlen=10)  
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 SIDEBAR_STYLE = {
-    "background-color": "#f8f9fa",
+    "backgroundColor": "#f8f9fa",
     "padding": "20px",
     "height":"100vh"
 }
@@ -71,12 +72,41 @@ maindiv = html.Div([
                         ]
                     ), className="border-0"
                 ), label="Scatter Mapbox", tab_id="tab-2"),
-            ], style={"margin-left":"10px"}
+            ], style={"marginLeft":"10px"}
         )
 
-    ], style={"min-height": "50px", "padding-bottom": "50px"}),
+    ], style={"minHeight": "50px", "paddingBottom": "20px"}),
     dbc.Row([
         html.H2("Predicting"),
+        html.P("After running the clustering, you can make predictions. Select the training period for the model, select the horizon, and click on 'make predictions'. "),
+        
+        dbc.Col([
+            dbc.Label("Start and end date for model training:"), html.Br(),
+            dcc.DatePickerSingle(
+                id='model-train-start',
+                min_date_allowed=date(1995, 8, 5),
+                max_date_allowed=date(2023, 8, 24),
+                initial_visible_month=date(2023, 1, 1),
+                date=date(2023, 1, 1),
+                style={"backgroundColor":"red"}
+            ),
+            html.Br(), html.Br(),
+            dcc.DatePickerSingle(
+                id='model-train-end',
+                min_date_allowed=date(1995, 8, 5),
+                max_date_allowed=date(2023, 8, 24),
+                initial_visible_month=date(2023, 2, 1),
+                date=date(2023, 2, 1),
+            ),
+            html.Br(), html.Br(),
+            dbc.Label("Horizon length in days:"),
+            dbc.Input(id='horizon-length', type='text', value=7),
+            html.Br(), html.Br(),
+            dbc.Button('Train and predict', id='train-predict-button', n_clicks=0, color="primary", className="me-1", style={"width":"100%"}),
+
+        ], width=3, style={}), 
+        dbc.Col("Text here.", width=9), 
+        
     ])
 ], style=CONTENT_STYLE)
 
@@ -106,7 +136,7 @@ sidebar = html.Div(
         # Elements for log messages.
         # html.Div(id='container-button-basic', style={"margin-top":"10px", "overflow":"auto", "height":"400px"}),
         dcc.Interval(id='interval-component', interval=300, n_intervals=0),  # Update every 2 seconds
-        html.Div(id="log-display", style={"whiteSpace":"pre-wrap", "padding-top":"15px", "height":"100%", "overflow":"auto"}),
+        html.Div(id="log-display", style={"whiteSpace":"pre-wrap", "paddingTop":"15px", "height":"100%", "overflow":"auto"}),
 
         html.Div(id="output"), # For chaining output of function 
         dcc.Store(id='data-store'),
@@ -168,14 +198,14 @@ def run_pipeline(_, df, n_clicks, min_samples, eps, min_unique_days):
     df = pd.DataFrame(df)
     df['timestamp'] = pd.to_datetime(df['timestamp'])
 
-    add_log_message(f"Running pipeline")
+    add_log_message(f"Running pipeline...")
 
     # Step 2. Run clustering. Returns df and a fig with a scattermapbox. 
     df, fig = run_clustering(df, int(min_samples), float(eps), int(min_unique_days))
     # fig = fig.update_layout()
 
     # Step 3. Transform data
-    add_log_message(f"Transforming and resampling the dataset")
+    add_log_message(f"Transforming and resampling the dataset...")
     df = DT.transform_start_end_times(df, outputs_folder_name, fill_gaps=True)
 
     # Step 4. Resample dataset. This saves the data at output/outputs_folder_name/resampled_df_10_min.xlsx.
@@ -186,7 +216,7 @@ def run_pipeline(_, df, n_clicks, min_samples, eps, min_unique_days):
 
 
 def run_clustering(df, min_samples, eps, min_unique_days):
-    add_log_message(f"Starting the clustering")
+    add_log_message(f"Starting the clustering...")
     # Step 2. Run clustering
     c = Cluster(
         df,  # Input dataset (with latitude, longitude, timestamp columns)
