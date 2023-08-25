@@ -383,7 +383,7 @@ class ModelPerformanceVisualizer():
 class EDA():
     def __init__(self, data:pd.DataFrame, outputs_folder_name:str) -> None:
         self.outputs_folder_name = outputs_folder_name
-        self.data = data
+        self.data = data # Here, data is the raw (meaning: timestamps and coordinates) dataset. 
 
         return None
     
