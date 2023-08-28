@@ -69,6 +69,13 @@ def resample_df(df: pd.DataFrame, outputs_folder_name:str) -> pd.DataFrame:
         raise ValueError(
             "Make sure that df contains columns 'begin_time', 'end_time' and location_id'."
         )
+    
+    # In our dataset we have data points labeled as noise. Remove them and replace by last known (ie valid) value.
+    # Replace 'none' with NaN to make use of fillna method
+    df['location'] = df['location'].replace(' no cluster,  Noise', pd.NA)
+
+    # Forward fill missing values
+    df['location'].fillna(method='ffill', inplace=True)
 
     # V2 of the code to also include the time intervals until the end_date of the last row:
     df = df.set_index('begin_time')
