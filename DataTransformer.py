@@ -96,3 +96,13 @@ def resample_df(df: pd.DataFrame, outputs_folder_name:str) -> pd.DataFrame:
     df.to_excel(f"output/{outputs_folder_name}/resampled_df_10_min.xlsx")
 
     return df
+
+def add_temporal_features(df: pd.DataFrame):
+    # Input: df with a 'timestamp' column and a location column. 
+    
+    df["day"] = df["timestamp"].dt.day
+    df["weekday"] = df["timestamp"].dt.dayofweek
+    df["hour"] = df["timestamp"].dt.hour
+    df["window_block"] = ((df['timestamp'].dt.minute * 60 + df['timestamp'].dt.second) // 600).astype(int)
+
+    return df

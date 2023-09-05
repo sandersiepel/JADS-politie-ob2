@@ -5,7 +5,7 @@ from Cluster import Cluster
 import DataTransformer as DT
 from TrainAndEvaluateV2 import TrainAndEvaluate
 import pandas as pd
-from Visualisations import ModelPerformanceVisualizer, EDA
+from Visualisations import ModelPerformanceVisualizer, EDA, DataPredicatability
 from collections import deque
 import dash_bootstrap_components as dbc
 from datetime import datetime
@@ -20,15 +20,16 @@ data_source = "google_maps"  # Can be either 'google_maps' or 'routined'.
 # which means that we need to offset it by 2 hours to make it GMT+2 (Dutch timezone). Value must be INT!
 hours_offset = 2 # Should be 0 for routined and 2 for google_maps. 
 # begin_date and end_date are used to filter the data for your analysis.
-begin_date = "2021-05-01"
-end_date = "2022-08-01"  # End date is INclusive! 
+begin_date = "2023-03-01"
+end_date = "2023-06-01"  # End date is INclusive! 
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
-fraction = 0.5
+fraction = 1
 # For the model performance class we need to specify the number of training days (range) and testing horizon (also in days)
 training_window_size = 100
 horizon_size = 30
 window_step_size = 1
 outputs_folder_name = f"martijn-{training_window_size}-{horizon_size}-{window_step_size}" # All of the outputs will be placed in output/outputs_folder_name
+predictability_graph_rolling_window_size = 10 # See docstring of Visualizations.DataPredicatability for more info on this parameter.
 
 log_messages = deque(maxlen=10)  
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -72,7 +73,16 @@ maindiv = html.Div([
                         ]
                     ), className="border-0"
                 ), label="Scatter Mapbox", tab_id="tab-2"),
-            ], style={"marginLeft":"10px"}
+
+                dbc.Tab(dbc.Card(
+                    dbc.CardBody(
+                        [
+                            dcc.Graph(id="predictability_graph"),
+                        ]
+                    ), className="border-0"
+                ), label="Predictability", tab_id="tab-3"),            
+            ], style={"marginLeft":"10px"},
+            
         )
 
     ], style={"minHeight": "50px", "paddingBottom": "20px"}),
@@ -154,14 +164,14 @@ app.layout = html.Div([
 
 
 @app.callback(
-    [Output('counts_per_day', 'figure'),
-    Output('data-store', 'data')],
+    [
+        Output('counts_per_day', 'figure'),
+        Output('data-store', 'data')
+    ],
     Input('submit-val', 'n_clicks'),
+    prevent_initial_call=True
 )
-def run_eda(n_clicks):
-    if n_clicks <= 0:
-        return dash.no_update
-    
+def run_eda(_):    
     add_log_message(f"Loading the dataset...")
 
     df, fig = DL.load_data(
@@ -181,15 +191,20 @@ def run_eda(n_clicks):
     
 
 @app.callback(
-    [Output('scatter_mapbox_graph', 'figure'),
-    Output('data-store2', 'data'), 
-    Output('eda-tabs', 'active_tab')],
-    [Input('counts_per_day', 'figure'),
-    Input('data-store', 'data'),
-    State('submit-val', 'n_clicks'),
-    State('min_samples', 'value'),
-    State('eps', 'value'),
-    State('min_unique_days', 'value')]  
+    [
+        Output('scatter_mapbox_graph', 'figure'),
+        Output('data-store2', 'data'), 
+        Output('eda-tabs', 'active_tab', allow_duplicate=True)
+    ],
+    [
+        Input('counts_per_day', 'figure'),
+        Input('data-store', 'data'),
+        State('submit-val', 'n_clicks'),
+        State('min_samples', 'value'),
+        State('eps', 'value'),
+        State('min_unique_days', 'value')
+    ],
+    prevent_initial_call=True  
 )
 def run_pipeline(_, df, n_clicks, min_samples, eps, min_unique_days):
     if n_clicks <= 0:
@@ -212,6 +227,30 @@ def run_pipeline(_, df, n_clicks, min_samples, eps, min_unique_days):
     add_log_message(f"Done, saving datasets at output/{outputs_folder_name}")
 
     return fig, df.to_dict('records'), "tab-2"
+
+
+@app.callback(
+    [
+        Output('predictability_graph', 'figure'), 
+        Output('eda-tabs', 'active_tab', allow_duplicate=True)
+    ],
+    [
+        Input('scatter_mapbox_graph', 'figure'), 
+        Input('data-store2', 'data'), 
+    ],
+    prevent_initial_call=True
+)
+def show_predictability(_, data):
+    add_log_message("Making predictability graph...")
+
+    df = pd.DataFrame(data)
+    df['timestamp'] = pd.to_datetime(df['timestamp'])
+
+    df = DT.add_temporal_features(df)
+
+    fig = DataPredicatability(df, predictability_graph_rolling_window_size).run()
+    add_log_message("Done with predictability graph")
+    return fig, "tab-3"
 
 
 def run_clustering(df, min_samples, eps, min_unique_days):
@@ -254,7 +293,7 @@ def run_clustering(df, min_samples, eps, min_unique_days):
     Output("log-display", "children"),
     Input("interval-component", "n_intervals")
 )
-def update_log_display(n_intervals):
+def update_log_display(_):
     log_texts = "\n".join(log_messages)
     return log_texts
 

@@ -393,5 +393,80 @@ class EDA():
         counts = counts.reset_index()
 
         self.fig = px.bar(counts, x='timestamp', y='day_count')
-        # self.fig.show()
+        self.fig.update_layout(title="Number of datapoints in the dataset per day", xaxis_title="Time", yaxis_title="Number of datapoints")
         self.fig.write_html(f"output/{self.outputs_folder_name}/EDA_records_per_day.html") 
+
+
+class DataPredicatability():
+    def __init__(self, df: pd.DataFrame, rolling_window_size=10):
+        self.df = df # Df should contain the columns: timestamp, location, and the temporal features. Basically, this is the df after loading the resampled 10-min block dataset + the temp features.
+        self.rolling_window_size = rolling_window_size # TODO: add documentation for this parameter.
+
+    def run(self):
+        data = self.make_dataset()
+        return self.make_graph(data, savgol_filter=True)
+
+    def make_dataset(self) -> list:
+        from collections import defaultdict
+
+        res, final_res = defaultdict(dict), defaultdict(dict)
+        this_day_values = []
+
+        for _, row in self.df.iterrows():
+            m = (row['weekday'], row['hour'], row['window_block'])
+
+            if not 'data' in res[m]: res[m]['data'] = {}
+
+            try:
+                # Calculate the probability of having this location in this moment
+                this_day_values.append(res[m]['data'][row['location']] / sum(res[m]['data'].values()))
+            except KeyError:
+                # The location is not in the dict, so we default to 0. This happens when the location hasn't been visited before in this moment. 
+                this_day_values.append(0)
+            
+            # Now we update the res dict with data of current window block
+            if row['location'] in res[m]['data']:
+                res[m]['data'][row['location']] += 1
+            else:
+                res[m]['data'][row['location']] = 1
+
+            # If we now exceeded THRESHOLD, remove the last entry (like a rolling window approach)
+            if sum(res[m]['data'].values()) >= self.rolling_window_size:
+                # Minus one for last entry
+                res[m]['data'][res[m]['meta']['last_location']] -= 1
+
+            res[m]['meta'] = {'last_location':row['location']}
+
+            # Now we check if this window block is the last one of the day. If so, save score for this day and reset variables for next day.
+            if row['hour'] == 23 and row['window_block'] == 5: # We know that the day has ended when we hit timestamp 23:50. 
+                final_res[row['timestamp'].date()] = sum(this_day_values)/len(this_day_values)
+                this_day_values = []
+
+        return final_res
+    
+    def make_graph(self, data, savgol_filter=True):
+        import plotly.graph_objects as go
+        from scipy import signal
+
+        x,y = zip(*sorted(data.items()))
+        df_plot = pd.DataFrame({"Time":x, "Score":y})
+
+        fig = go.Figure()
+
+        if savgol_filter:
+            fig.add_trace(go.Scatter(
+                x=df_plot.Time.values.tolist(),
+                y=signal.savgol_filter(df_plot['Score'].values.tolist(),
+                                    20, # window size used for filtering
+                                    3), # order of fitted polynomial
+                name='Savitzky-Golay'
+            ))
+        else:
+            fig.add_trace(go.Scatter(
+                x=df_plot.Time.values.tolist(),
+                y=y
+            ))
+
+        fig.update_layout(title="Predictability of the days in the dataset", xaxis_title="Time", yaxis_title="Predictability")
+
+        return fig
