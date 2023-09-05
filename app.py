@@ -21,7 +21,7 @@ data_source = "google_maps"  # Can be either 'google_maps' or 'routined'.
 hours_offset = 2 # Should be 0 for routined and 2 for google_maps. 
 # begin_date and end_date are used to filter the data for your analysis.
 begin_date = "2023-03-01"
-end_date = "2023-06-01"  # End date is INclusive! 
+end_date = "2023-09-04"  # End date is INclusive! 
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
 fraction = 1
 # For the model performance class we need to specify the number of training days (range) and testing horizon (also in days)
@@ -31,7 +31,7 @@ window_step_size = 1
 outputs_folder_name = f"martijn-{training_window_size}-{horizon_size}-{window_step_size}" # All of the outputs will be placed in output/outputs_folder_name
 predictability_graph_rolling_window_size = 10 # See docstring of Visualizations.DataPredicatability for more info on this parameter.
 
-log_messages = deque(maxlen=10)  
+log_messages = deque(maxlen=5)  
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 SIDEBAR_STYLE = {
