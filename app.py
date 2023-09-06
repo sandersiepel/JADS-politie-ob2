@@ -5,14 +5,15 @@ from Cluster import Cluster
 import DataTransformer as DT
 from TrainAndEvaluateV2 import TrainAndEvaluate
 import pandas as pd
-from Visualisations import ModelPerformanceVisualizer, EDA, DataPredicatability
+from Visualisations import ModelPerformanceVisualizer, EDA, DataPredicatability, HeatmapVisualizer
 from collections import deque
 import dash_bootstrap_components as dbc
 from datetime import datetime
 import plotly.express as px
 import dash
 from datetime import date
-
+import io
+import base64
 
 # Initialize parameters.
 data_source = "google_maps"  # Can be either 'google_maps' or 'routined'.
@@ -20,7 +21,7 @@ data_source = "google_maps"  # Can be either 'google_maps' or 'routined'.
 # which means that we need to offset it by 2 hours to make it GMT+2 (Dutch timezone). Value must be INT!
 hours_offset = 2 # Should be 0 for routined and 2 for google_maps. 
 # begin_date and end_date are used to filter the data for your analysis.
-begin_date = "2023-03-01"
+begin_date = "2022-11-01"
 end_date = "2023-09-04"  # End date is INclusive! 
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
 fraction = 1
@@ -29,7 +30,7 @@ training_window_size = 100
 horizon_size = 30
 window_step_size = 1
 outputs_folder_name = f"martijn-{training_window_size}-{horizon_size}-{window_step_size}" # All of the outputs will be placed in output/outputs_folder_name
-predictability_graph_rolling_window_size = 10 # See docstring of Visualizations.DataPredicatability for more info on this parameter.
+predictability_graph_rolling_window_size = 5 # See docstring of Visualizations.DataPredicatability for more info on this parameter.
 
 log_messages = deque(maxlen=5)  
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -80,7 +81,16 @@ maindiv = html.Div([
                             dcc.Graph(id="predictability_graph"),
                         ]
                     ), className="border-0"
-                ), label="Predictability", tab_id="tab-3"),            
+                ), label="Predictability", tab_id="tab-3"),    
+
+                dbc.Tab(dbc.Card(
+                    dbc.CardBody(
+                        [
+                            # dcc.Graph(id="location_history_heatmap"),
+                            html.Img(id="location_history_heatmap", style={"width":"100%"})
+                        ]
+                    ), className="border-0"
+                ), label="Location History", tab_id="tab-4"),                
             ], style={"marginLeft":"10px"},
             
         )
@@ -251,6 +261,33 @@ def show_predictability(_, data):
     fig = DataPredicatability(df, predictability_graph_rolling_window_size).run()
     add_log_message("Done with predictability graph")
     return fig, "tab-3"
+
+
+@app.callback(
+    [
+        Output('location_history_heatmap', 'src'), 
+        Output('eda-tabs', 'active_tab', allow_duplicate=True)
+    ],
+    [
+        Input('predictability_graph', 'figure'), 
+        Input('data-store2', 'data'), 
+    ],
+    prevent_initial_call=True
+)
+def show_location_history_heatmap(_, data):
+    add_log_message("Making location history heatmap...")
+
+    df = pd.DataFrame(data)
+    df['timestamp'] = pd.to_datetime(df['timestamp'])
+
+    encoded_image = HeatmapVisualizer(
+        "2023-07-01", "2023-07-10", df, outputs_folder_name=outputs_folder_name, verbose=True, name="heatmap", title=""
+    ).get_encoded_fig()
+
+    src = f"data:image/png;base64,{encoded_image}"
+
+    add_log_message("Done with location history heatmap")
+    return src, "tab-4"
 
 
 def run_clustering(df, min_samples, eps, min_unique_days):

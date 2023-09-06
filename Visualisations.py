@@ -7,13 +7,14 @@ import re
 import sys
 from sklearn import preprocessing
 import pickle
-from collections import defaultdict
 import seaborn as sns
 import plotly.express as px
+import base64
+import io
 
 
 class HeatmapVisualizer:
-    def __init__(self, begin_day: str, end_day: str, df: pd.DataFrame, name: str, title: str, verbose: bool = True) -> None:
+    def __init__(self, begin_day: str, end_day: str, df: pd.DataFrame, outputs_folder_name:str, name: str, title: str, verbose: bool = True) -> None:
         """TODO: add docstring!
  
         df is a pd.DataFrame with "time" column (10-minute intervals) and "location" column (string labels of locations).
@@ -23,6 +24,7 @@ class HeatmapVisualizer:
         self.verbose = verbose
         self.name = name
         self.title = title
+        self.outputs_folder_name = outputs_folder_name
         self.validate_input(begin_day, end_day, df)
 
         # Set validated params
@@ -105,13 +107,22 @@ class HeatmapVisualizer:
         self.add_grid()
         self.add_colorbar()
         self.ax.set_title(
-            f"{self.title}. Location history of Significant Locations (\u0394t = 10min) from {self.begin_day} 00:00 to {self.end_day} 23:50"
+            f"{self.title}Location history of Significant Locations (\u0394t = 10min) from {self.begin_day} 00:00 to {self.end_day} 23:50"
         )
         self.ax.set_xlabel("Timestamp")
-        self.fig.savefig(f"output/{self.name}.png", dpi=1000)
+
+        # We encode the image with a buffer so that we can load it in a Dash application. 
+        path = f"output/{self.outputs_folder_name}/{self.name}.png"
+        plt.savefig(path, format="png", dpi=1000)
+        with open(path, 'rb') as image_file:
+            self.encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
+    
         print(
-            f"Message (heatmap visualizer): Succesfully downloaded heatmap to output/{self.name}.png."
+            f"Message (heatmap visualizer): Succesfully downloaded heatmap to output/{self.outputs_folder_name}/{self.name}.png."
         )
+
+    def get_encoded_fig(self) -> None:
+        return self.encoded_image
 
     def calc_parameters(self) -> None:
         """This function calculates all the parameters that are required for this visualization."""
