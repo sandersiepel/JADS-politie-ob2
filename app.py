@@ -21,8 +21,8 @@ data_source = "google_maps"  # Can be either 'google_maps' or 'routined'.
 # which means that we need to offset it by 2 hours to make it GMT+2 (Dutch timezone). Value must be INT!
 hours_offset = 2 # Should be 0 for routined and 2 for google_maps. 
 # begin_date and end_date are used to filter the data for your analysis.
-begin_date = "2022-11-01"
-end_date = "2023-09-04"  # End date is INclusive! 
+begin_date = "2023-04-01"
+end_date = "2023-08-04"  # End date is INclusive! 
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
 fraction = 1
 # For the model performance class we need to specify the number of training days (range) and testing horizon (also in days)
@@ -62,6 +62,7 @@ maindiv = html.Div([
                 dbc.Tab(dbc.Card(
                     dbc.CardBody(
                         [
+                            dcc.Markdown(["This graph shows the <span style='color:#0d6efd;' children=\"number of datapoints per day\" /> in the dataset."], dangerously_allow_html=True),
                             dcc.Graph(id="counts_per_day"),
                         ]
                     ), className="border-0"
@@ -70,6 +71,7 @@ maindiv = html.Div([
                 dbc.Tab(dbc.Card(
                     dbc.CardBody(
                         [
+                            dcc.Markdown(["This graph shows the <span style='color:#0d6efd;' children=\"identified clusters and their centroids\" /> that were found by the DBSCAN algorithm."], dangerously_allow_html=True),
                             dcc.Graph(id="scatter_mapbox_graph"),
                         ]
                     ), className="border-0"
@@ -78,6 +80,7 @@ maindiv = html.Div([
                 dbc.Tab(dbc.Card(
                     dbc.CardBody(
                         [
+                            dcc.Markdown(["This graph shows the <span style='color:#0d6efd;' children=\"estimated predictability\" /> of the person's locations over time. Analysing this graph is helpful to determine if 1) the person's location behavior is stable and 2) if the person is likely to be predictable."], dangerously_allow_html=True),
                             dcc.Graph(id="predictability_graph"),
                         ]
                     ), className="border-0"
@@ -87,7 +90,16 @@ maindiv = html.Div([
                     dbc.CardBody(
                         [
                             # dcc.Graph(id="location_history_heatmap"),
-                            html.Img(id="location_history_heatmap", style={"width":"100%"})
+                            dcc.Markdown(["This graph shows the <span style='color:#0d6efd;' children=\"visited locations\" /> of the person between two dates. Use the date range below to change the dates."], dangerously_allow_html=True),
+                            html.Img(id="location_history_heatmap", style={"width":"100%", "min-height":"300px"}),
+                            dcc.DatePickerRange(
+                                id='heatmap-picker-range',
+                                min_date_allowed=date(2000, 1, 1),
+                                max_date_allowed=date(2023, 12, 31),
+                                initial_visible_month=date(2023, 1, 1),
+                                start_date=date(2023, 1, 1),
+                                end_date=date(2023, 1, 7)
+                            ),
                         ]
                     ), className="border-0"
                 ), label="Location History", tab_id="tab-4"),                
@@ -102,30 +114,21 @@ maindiv = html.Div([
         
         dbc.Col([
             dbc.Label("Start and end date for model training:"), html.Br(),
-            dcc.DatePickerSingle(
-                id='model-train-start',
-                min_date_allowed=date(1995, 8, 5),
-                max_date_allowed=date(2023, 8, 24),
-                initial_visible_month=date(2023, 1, 1),
-                date=date(2023, 1, 1),
-                style={"backgroundColor":"red"}
+            dcc.DatePickerRange(
+                id='heatmap-range',
+                min_date_allowed=date(2000, 1, 1),
+                max_date_allowed=date(2023, 12, 31),
+                initial_visible_month=date(2023, 9, 1),
+                end_date=date(2023, 9, 10)
             ),
-            html.Br(), html.Br(),
-            dcc.DatePickerSingle(
-                id='model-train-end',
-                min_date_allowed=date(1995, 8, 5),
-                max_date_allowed=date(2023, 8, 24),
-                initial_visible_month=date(2023, 2, 1),
-                date=date(2023, 2, 1),
-            ),
-            html.Br(), html.Br(),
+            html.Br(),html.Br(),
             dbc.Label("Horizon length in days:"),
             dbc.Input(id='horizon-length', type='text', value=7),
             html.Br(), html.Br(),
             dbc.Button('Train and predict', id='train-predict-button', n_clicks=0, color="primary", className="me-1", style={"width":"100%"}),
 
-        ], width=3, style={}), 
-        dbc.Col("Text here.", width=9), 
+        ], width=4, style={}), 
+        dbc.Col("Text here.", width=8), 
         
     ])
 ], style=CONTENT_STYLE)
@@ -265,8 +268,13 @@ def show_predictability(_, data):
 
 @app.callback(
     [
-        Output('location_history_heatmap', 'src'), 
-        Output('eda-tabs', 'active_tab', allow_duplicate=True)
+        Output('location_history_heatmap', 'src', allow_duplicate=True), 
+        Output('eda-tabs', 'active_tab', allow_duplicate=True),
+        Output('heatmap-picker-range', 'start_date'),
+        Output('heatmap-picker-range', 'end_date'),
+        Output('heatmap-picker-range', 'initial_visible_month'),
+        Output('heatmap-picker-range', 'min_date_allowed'),
+        Output('heatmap-picker-range', 'max_date_allowed')
     ],
     [
         Input('predictability_graph', 'figure'), 
@@ -280,15 +288,50 @@ def show_location_history_heatmap(_, data):
     df = pd.DataFrame(data)
     df['timestamp'] = pd.to_datetime(df['timestamp'])
 
+    # Last day of dataset
+    end_day = df.timestamp.max()
+    start_day = (end_day - pd.Timedelta(days=6))
+
     encoded_image = HeatmapVisualizer(
-        "2023-07-01", "2023-07-10", df, outputs_folder_name=outputs_folder_name, verbose=True, name="heatmap", title=""
+        start_day.strftime("%Y-%m-%d"), end_day.strftime("%Y-%m-%d"), df, outputs_folder_name=outputs_folder_name, verbose=False, name="heatmap", title=""
     ).get_encoded_fig()
 
     src = f"data:image/png;base64,{encoded_image}"
+    add_log_message("Done with location history heatmap")
+
+    # Set the min_date_allowed and max_date_allowed (based on the ranges of our dataset)
+
+    return src, "tab-4", start_day.date(), end_day.date(), start_day.date(), df.timestamp.min().date(), df.timestamp.max().date()
+
+
+@callback(
+    Output('location_history_heatmap', 'src'),
+    [Input('heatmap-picker-range', 'start_date'),
+    Input('heatmap-picker-range', 'end_date'),
+    Input('data-store2', 'data')],
+    prevent_initial_call=True)
+def update_location_history_heatmap(start_date, end_date, data):
+    add_log_message("Updating location history heatmap...")
+    # Do not execute this function if data-store2 has changed, but only when heatmap-picker-range has changed (either start date or end date).
+    if not dash.callback_context.triggered[0]['prop_id'] in ['heatmap-picker-range.start_date', 'heatmap-picker-range.end_date']:
+        raise PreventUpdate
+    
+    # TODO: check if data is available (i.e., clustering has been performed)
+    df = pd.DataFrame(data)
+    df['timestamp'] = pd.to_datetime(df['timestamp'])
+
+    print(f"Updating heatmap, Start date: {start_date}, end date: {end_date}, len data: {len(df)}")
+
+    encoded_image = HeatmapVisualizer(
+        start_date, end_date, df, outputs_folder_name=outputs_folder_name, verbose=False, name="heatmap", title=""
+    ).get_encoded_fig()
+
+    # why no update? 
 
     add_log_message("Done with location history heatmap")
-    return src, "tab-4"
-
+    src = f"data:image/png;base64,{encoded_image}"
+    return src
+    
 
 def run_clustering(df, min_samples, eps, min_unique_days):
     add_log_message(f"Starting the clustering...")
