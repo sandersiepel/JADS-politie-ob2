@@ -31,17 +31,15 @@ class HeatmapVisualizer:
         self.begin_day = begin_day
         self.end_day = end_day
 
-        # Filter the full dataset based on begin- and endday.
-        self.df = df.set_index("timestamp").loc[self.begin_day : self.end_day]
+        # Filter the full dataset based on begin- and endday. We add "23:59" to the endday to also include the data of that day.
+        self.df = df[df["timestamp"].between(self.begin_day, self.end_day + " 23:59", inclusive='both')]
+        self.df = self.df.set_index("timestamp")
 
         # Optionally, print some info for debugging purposes.
         if self.verbose:
             print(
                 f"Message (heatmap visualizer): Making heatmap with {len(self.df)} records, starting at {self.df.index.values[0]} and ending at {self.df.index.values[-1]}."
             )
-
-        # Manual settings
-        self.fig_height = 6  # Height of the output figure, needed for calculations.
 
         # Init funcs
         self.calc_parameters()
@@ -94,7 +92,7 @@ class HeatmapVisualizer:
 
     def make_plot(self) -> None:
         """Main function that is automatically ran upon initializing an instance of the HeatmapVisualizer class. This function adds everything together."""
-        self.fig, self.ax = plt.subplots(figsize=(16, self.fig_height))
+        self.fig, self.ax = plt.subplots(figsize=(16, 8))
         self.set_y_ticks()
         self.set_x_ticks()
         self.im = self.ax.imshow(
@@ -106,20 +104,22 @@ class HeatmapVisualizer:
         )
         self.add_grid()
         self.add_colorbar()
-        self.ax.set_title(
-            f"{self.title}Location history of Significant Locations (\u0394t = 10min) from {self.begin_day} 00:00 to {self.end_day} 23:50"
-        )
+        # self.ax.set_title(
+        #     f"{self.title}Location history of Significant Locations (\u0394t = 10min) from {self.begin_day} 00:00 to {self.end_day} 23:50"
+        # )
         self.ax.set_xlabel("Timestamp")
+        self.fig.tight_layout()
 
         # We encode the image with a buffer so that we can load it in a Dash application. 
         path = f"output/{self.outputs_folder_name}/{self.name}.png"
-        plt.savefig(path, format="png", dpi=1000)
+        plt.savefig(path, format="png", dpi=300)
         with open(path, 'rb') as image_file:
             self.encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
     
-        print(
-            f"Message (heatmap visualizer): Succesfully downloaded heatmap to output/{self.outputs_folder_name}/{self.name}.png."
-        )
+        if self.verbose:
+            print(
+                f"Message (heatmap visualizer): Succesfully downloaded heatmap to output/{self.outputs_folder_name}/{self.name}.png."
+            )
 
     def get_encoded_fig(self) -> None:
         return self.encoded_image
@@ -127,10 +127,9 @@ class HeatmapVisualizer:
     def calc_parameters(self) -> None:
         """This function calculates all the parameters that are required for this visualization."""
         self.run_label_encoder()
-        self.n_per_day = 144  # TODO: calculate this.
+        self.n_per_day = 144 
         self.n_days = (
-            1
-            + (
+            1 + (
                 datetime.strptime(self.end_day, "%Y-%m-%d").date()
                 - datetime.strptime(self.begin_day, "%Y-%m-%d").date()
             ).days
@@ -290,10 +289,10 @@ class HeatmapVisualizer:
         self.cbar = plt.colorbar(self.im, ax=self.ax, aspect=20, ticks=self.bounds)
         self.cbar.ax.get_yaxis().set_ticks([])
 
-        # The location labels can be quite long; this part cuts them (or rather, adds newlines) so that the width of the labels is max 20 chars.
+        # The location labels can be quite long; this part cuts them (or rather, adds newlines) so that the width of the labels is max 30 chars.
         locations_cut = []
         for string in self.locations:
-            chunks = [string[i : i + 20] for i in range(0, len(string), 20)]
+            chunks = [string[i : i + 30] for i in range(0, len(string), 30)]
             modified_string = "\n".join(chunks)
             locations_cut.append(modified_string.lstrip())
 
@@ -404,7 +403,7 @@ class EDA():
         counts = counts.reset_index()
 
         self.fig = px.bar(counts, x='timestamp', y='day_count')
-        self.fig.update_layout(title="Number of datapoints in the dataset per day", xaxis_title="Time", yaxis_title="Number of datapoints")
+        self.fig.update_layout(xaxis_title="Time", yaxis_title="Number of datapoints", margin=dict(l=0, r=0, t=0, b=0))
         self.fig.write_html(f"output/{self.outputs_folder_name}/EDA_records_per_day.html") 
 
 
@@ -478,6 +477,6 @@ class DataPredicatability():
                 y=y
             ))
 
-        fig.update_layout(title="Predictability of the days in the dataset", xaxis_title="Time", yaxis_title="Predictability")
+        fig.update_layout(xaxis_title="Time", yaxis_title="Predictability", margin=dict(l=0, r=0, t=0, b=0))
 
         return fig

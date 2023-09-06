@@ -1,18 +1,3 @@
-.SingleDatePickerInput {
-    width: 100%;
-}
-
-.DateInput_1 {
-    width: 100%;
-    border: 1px grey;
-    border-radius: 3px;
-}
-
-#model-train-start,
-#model-train-end {
-    width: 100%;
-}
-
-.SingleDatePicker {
-    width: 100%;
+.nav {
+    --bs-nav-link-color: black;
 }

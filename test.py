@@ -14,7 +14,4 @@ import json
 # h = HeatmapVisualizer(begin_day="2023-01-02", end_day="2023-01-10", df=df, name="heatmap", title="blabla")
 
 df = pd.read_excel("output/martijn-100-30-1/resampled_df_10_min.xlsx", index_col=[0])
-
-HeatmapVisualizer(
-    "2023-07-01", "2023-07-10", df, verbose=True, name="heatmap", title="Actual data"
-)
+print(df.timestamp.min().date())
