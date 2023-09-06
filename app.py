@@ -16,13 +16,13 @@ import io
 import base64
 
 # Initialize parameters.
-data_source = "google_maps"  # Can be either 'google_maps' or 'routined'.
+data_source = "routined"  # Can be either 'google_maps' or 'routined'.
 # hours_offset is used to offset the timestamps to account for timezone differences. For google maps, timestamp comes in GMT+0
 # which means that we need to offset it by 2 hours to make it GMT+2 (Dutch timezone). Value must be INT!
-hours_offset = 2 # Should be 0 for routined and 2 for google_maps. 
+hours_offset = 0 # Should be 0 for routined and 2 for google_maps. 
 # begin_date and end_date are used to filter the data for your analysis.
-begin_date = "2023-04-01"
-end_date = "2023-08-04"  # End date is INclusive! 
+begin_date = "2023-05-10"
+end_date = "2023-09-01"  # End date is INclusive! 
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
 fraction = 1
 # For the model performance class we need to specify the number of training days (range) and testing horizon (also in days)
@@ -113,7 +113,6 @@ maindiv = html.Div([
         html.P("After running the clustering, you can make predictions. Select the training period for the model, select the horizon, and click on 'make predictions'. "),
         
         dbc.Col([
-            dbc.Label("Start and end date for model training:"), html.Br(),
             dcc.DatePickerRange(
                 id='heatmap-range',
                 min_date_allowed=date(2000, 1, 1),
@@ -127,8 +126,8 @@ maindiv = html.Div([
             html.Br(), html.Br(),
             dbc.Button('Train and predict', id='train-predict-button', n_clicks=0, color="primary", className="me-1", style={"width":"100%"}),
 
-        ], width=4, style={}), 
-        dbc.Col("Text here.", width=8), 
+        ], width=2, style={}), 
+        dbc.Col("Text here.", width=10), 
         
     ])
 ], style=CONTENT_STYLE)
@@ -272,7 +271,7 @@ def show_predictability(_, data):
         Output('eda-tabs', 'active_tab', allow_duplicate=True),
         Output('heatmap-picker-range', 'start_date'),
         Output('heatmap-picker-range', 'end_date'),
-        Output('heatmap-picker-range', 'initial_visible_month'),
+        Output('heatmap-picker-range', 'initial_visible_month', allow_duplicate=True),
         Output('heatmap-picker-range', 'min_date_allowed'),
         Output('heatmap-picker-range', 'max_date_allowed')
     ],
@@ -305,10 +304,15 @@ def show_location_history_heatmap(_, data):
 
 
 @callback(
-    Output('location_history_heatmap', 'src'),
-    [Input('heatmap-picker-range', 'start_date'),
-    Input('heatmap-picker-range', 'end_date'),
-    Input('data-store2', 'data')],
+    [
+        Output('location_history_heatmap', 'src'),
+        Output('heatmap-picker-range', 'initial_visible_month')
+    ],
+    [
+        Input('heatmap-picker-range', 'start_date'),
+        Input('heatmap-picker-range', 'end_date'),
+        Input('data-store2', 'data')
+    ],
     prevent_initial_call=True)
 def update_location_history_heatmap(start_date, end_date, data):
     add_log_message("Updating location history heatmap...")
@@ -330,7 +334,7 @@ def update_location_history_heatmap(start_date, end_date, data):
 
     add_log_message("Done with location history heatmap")
     src = f"data:image/png;base64,{encoded_image}"
-    return src
+    return src, datetime.strptime(start_date, "%Y-%m-%d").date()
     
 
 def run_clustering(df, min_samples, eps, min_unique_days):
