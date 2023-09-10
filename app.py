@@ -425,7 +425,7 @@ def train_model(n_clicks, start_date, end_date, data, horizon_length):
 
     # Make X_test, starting one day after the last day in the dataset
     start_day = df.timestamp.max() + pd.Timedelta(minutes=10) # Max() always ends at 23:50 so we add 10 mins to get the next day.
-    end_day = start_day + pd.Timedelta(days=horizon_length-1, hours=23, minutes=50)
+    end_day = start_day + pd.Timedelta(days=int(horizon_length)-1, hours=23, minutes=50)
 
     print(f"Predicting starts at {start_day} and ends at {end_day}")
 
