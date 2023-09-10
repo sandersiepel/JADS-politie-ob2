@@ -14,15 +14,18 @@ import dash
 from datetime import date
 import io
 import base64
+from sklearn.preprocessing import LabelEncoder as le
+from sklearn.ensemble import RandomForestClassifier
+
 
 # Initialize parameters.
-data_source = "google_maps"  # Can be either 'google_maps' or 'routined'.
+data_source = "routined"  # Can be either 'google_maps' or 'routined'.
 # hours_offset is used to offset the timestamps to account for timezone differences. For google maps, timestamp comes in GMT+0
 # which means that we need to offset it by 2 hours to make it GMT+2 (Dutch timezone). Value must be INT!
-hours_offset = 2 # Should be 0 for routined and 2 for google_maps. 
+hours_offset = 0 # Should be 0 for routined and 2 for google_maps. 
 # begin_date and end_date are used to filter the data for your analysis.
-begin_date = "2023-01-10"
-end_date = "2023-07-01"  # End date is INclusive! 
+begin_date = "2023-06-20"
+end_date = "2023-09-01"  # End date is INclusive! 
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
 fraction = 1
 # For the model performance class we need to specify the number of training days (range) and testing horizon (also in days)
@@ -114,7 +117,7 @@ maindiv = html.Div([
         
         dbc.Col([
             dcc.DatePickerRange(
-                id='heatmap-range',
+                id='heatmap-picker-range-prediction',
                 min_date_allowed=date(2000, 1, 1),
                 max_date_allowed=date(2023, 12, 31),
                 initial_visible_month=date(2023, 9, 1),
@@ -123,11 +126,13 @@ maindiv = html.Div([
             html.Br(),html.Br(),
             dbc.Label("Horizon length in days:"),
             dbc.Input(id='horizon-length', type='text', value=7),
-            html.Br(), html.Br(),
+            html.Br(), 
             dbc.Button('Train and predict', id='train-predict-button', n_clicks=0, color="primary", className="me-1", style={"width":"100%"}),
 
         ], width=2, style={}), 
-        dbc.Col("Text here.", width=10), 
+        dbc.Col([
+            html.Img(id="prediction_heatmap", style={"width":"100%", "min-height":"300px"}),
+        ], width=10), 
         
     ])
 ], style=CONTENT_STYLE)
@@ -372,6 +377,79 @@ def run_clustering(df, min_samples, eps, min_unique_days):
     add_log_message(f"Done with clustering")
 
     return df, c.fig
+
+@app.callback(
+    # Inputs: 
+    Output('prediction_heatmap', 'src'),
+    [
+        Input('train-predict-button', 'n_clicks'),
+        Input('heatmap-picker-range-prediction', 'start_date'),
+        Input('heatmap-picker-range-prediction', 'end_date'),
+        Input('data-store2', 'data'),
+        State('horizon-length', 'value'),
+    ],
+    prevent_initial_call=True
+)
+def train_model(n_clicks, start_date, end_date, data, horizon_length):
+    # Even though we have multiple inputs, this function should only fire when the button 'train-predict-button' is pressed
+    if not dash.callback_context.triggered[0]['prop_id'] in ['train-predict-button.n_clicks']:
+        raise PreventUpdate
+    
+    # Load local file if data-store2 doesn't contain any data, or else take data from data-store2 and build df. 
+    if data is None:
+        add_log_message("Loading training data from local file")
+        df = pd.read_excel(f"output/{outputs_folder_name}/resampled_df_10_min.xlsx", index_col=[0])
+    else:
+        df = pd.DataFrame(data)
+        add_log_message("Loading training data from browser storage")
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+
+    # Add temporal features and encode the location labels to integers
+    df = DT.add_temporal_features(df)
+    label_encoder = le()
+    df.location = label_encoder.fit_transform(df.location)
+
+    # Make train_start, train_end, predict_start, predict_end date(time) objects
+    train_start = pd.to_datetime(f"{start_date} 00:00:00")
+    train_end = pd.to_datetime(f"{end_date} 23:50:00")
+    print(f"Training starts at {train_start} and ends at {train_end}")
+
+    train_mask = df["timestamp"].between(train_start, train_end)
+    X_train = df.loc[train_mask, ["day", "weekday", "hour", "window_block"]]
+    y_train = df.loc[train_mask, "location"]
+
+    # Train model
+    add_log_message("Training ML model")
+    model = RandomForestClassifier()
+    model.fit(X_train, y_train) # , sample_weight=np.linspace(0, 1, len(X_train))
+
+    # Make X_test, starting one day after the last day in the dataset
+    start_day = df.timestamp.max() + pd.Timedelta(minutes=10) # Max() always ends at 23:50 so we add 10 mins to get the next day.
+    end_day = start_day + pd.Timedelta(days=horizon_length-1, hours=23, minutes=50)
+
+    print(f"Predicting starts at {start_day} and ends at {end_day}")
+
+    # Create a DataFrame with the 'time' column and the 'location' column that holds the predicted locations (strings).
+    df_predictions = pd.DataFrame({"timestamp": pd.date_range(start=start_day, end=end_day, freq="10T")})
+    df_predictions = DT.add_temporal_features(df_predictions)
+
+    # Make predictions and inverse transform them
+    df_predictions['location'] = model.predict(df_predictions[["day", "weekday", "hour", "window_block"]])
+    df_predictions['location'] = label_encoder.inverse_transform(df_predictions['location'])
+
+    print(df_predictions.head())
+    print(df_predictions.tail())
+
+    # Build heatmap
+    add_log_message("Making heatmap with predictions")
+    print(f"df predictions min: {df_predictions.timestamp.min().date().strftime('%Y-%m-%d')} and max: {df_predictions.timestamp.max()}")
+    encoded_image = HeatmapVisualizer(
+        df_predictions.timestamp.min().date().strftime('%Y-%m-%d'), df_predictions.timestamp.max().date().strftime('%Y-%m-%d'), df_predictions[["timestamp", "location"]], outputs_folder_name=outputs_folder_name, verbose=False, name="heatmap", title=""
+    ).get_encoded_fig()
+
+    src = f"data:image/png;base64,{encoded_image}"
+
+    return src
 
 @app.callback(
     Output("log-display", "children"),
