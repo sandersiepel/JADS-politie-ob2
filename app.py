@@ -15,17 +15,16 @@ from datetime import date
 import io
 import base64
 from sklearn.preprocessing import LabelEncoder as le
-from sklearn.ensemble import RandomForestClassifier
-
+from sklearn.ensemble import RandomForestClassifier 
 
 # Initialize parameters.
-data_source = "routined"  # Can be either 'google_maps' or 'routined'.
+data_source = "google_maps"  # Can be either 'google_maps' or 'routined'.
 # hours_offset is used to offset the timestamps to account for timezone differences. For google maps, timestamp comes in GMT+0
 # which means that we need to offset it by 2 hours to make it GMT+2 (Dutch timezone). Value must be INT!
-hours_offset = 0 # Should be 0 for routined and 2 for google_maps. 
+hours_offset = 2 # Should be 0 for routined and 2 for google_maps. 
 # begin_date and end_date are used to filter the data for your analysis.
-begin_date = "2023-06-20"
-end_date = "2023-09-01"  # End date is INclusive! 
+begin_date = "2019-01-01"
+end_date = "2020-01-01"  # End date is INclusive! 
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
 fraction = 1
 # For the model performance class we need to specify the number of training days (range) and testing horizon (also in days)
@@ -116,12 +115,20 @@ maindiv = html.Div([
         html.P("After running the clustering, you can make predictions. Select the training period for the model, select the horizon, and click on 'make predictions'. "),
         
         dbc.Col([
+            # Add an input field for year selection
+            dbc.Label("Select starting year"),
+            dcc.Dropdown([2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023], 2023, id='year-prediction'),
+            html.Br(),
             dcc.DatePickerRange(
                 id='heatmap-picker-range-prediction',
                 min_date_allowed=date(2000, 1, 1),
                 max_date_allowed=date(2023, 12, 31),
-                initial_visible_month=date(2023, 9, 1),
-                end_date=date(2023, 9, 10)
+                initial_visible_month=date(2023, 1, 1),
+                with_portal=True,
+                clearable=True,
+                number_of_months_shown=3,
+                start_date_placeholder_text='Start day',
+                end_date_placeholder_text='End day',
             ),
             html.Br(),html.Br(),
             dbc.Label("Horizon length in days:"),
@@ -178,6 +185,15 @@ app.layout = html.Div([
         dbc.Col(maindiv, width=9, className="offset-3") 
     ])
 ])
+
+
+@app.callback(
+    Output('heatmap-picker-range-prediction', 'initial_visible_month'), 
+    Input('year-prediction', 'value'),
+    prevent_initial_call=True,
+)
+def update_year_prediction(selected_year):
+    return date(selected_year, 1, 1)
 
 
 @app.callback(
@@ -278,7 +294,9 @@ def show_predictability(_, data):
         Output('heatmap-picker-range', 'end_date'),
         Output('heatmap-picker-range', 'initial_visible_month', allow_duplicate=True),
         Output('heatmap-picker-range', 'min_date_allowed'),
-        Output('heatmap-picker-range', 'max_date_allowed')
+        Output('heatmap-picker-range', 'max_date_allowed'),
+        Output('heatmap-picker-range-prediction', 'min_date_allowed'),
+        Output('heatmap-picker-range-prediction', 'max_date_allowed')
     ],
     [
         Input('predictability_graph', 'figure'), 
@@ -305,7 +323,7 @@ def show_location_history_heatmap(_, data):
 
     # Set the min_date_allowed and max_date_allowed (based on the ranges of our dataset)
 
-    return src, "tab-4", start_day.date(), end_day.date(), start_day.date(), df.timestamp.min().date(), df.timestamp.max().date()
+    return src, "tab-4", start_day.date(), end_day.date(), start_day.date(), df.timestamp.min().date(), df.timestamp.max().date(), df.timestamp.min().date(), df.timestamp.max().date()
 
 
 @callback(
