@@ -12,10 +12,9 @@ from datetime import datetime
 import plotly.express as px
 import dash
 from datetime import date
-import io
-import base64
 from sklearn.preprocessing import LabelEncoder as le
 from sklearn.ensemble import RandomForestClassifier 
+
 
 # Initialize parameters.
 data_source = "google_maps"  # Can be either 'google_maps' or 'routined'.
@@ -23,15 +22,15 @@ data_source = "google_maps"  # Can be either 'google_maps' or 'routined'.
 # which means that we need to offset it by 2 hours to make it GMT+2 (Dutch timezone). Value must be INT!
 hours_offset = 2 # Should be 0 for routined and 2 for google_maps. 
 # begin_date and end_date are used to filter the data for your analysis.
-begin_date = "2019-01-01"
-end_date = "2020-01-01"  # End date is INclusive! 
+begin_date = "2023-01-01"
+end_date = "2023-09-11"  # End date is INclusive! 
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
-fraction = 1
+fraction = 0.5
 # For the model performance class we need to specify the number of training days (range) and testing horizon (also in days)
 training_window_size = 100
 horizon_size = 30
 window_step_size = 1
-outputs_folder_name = f"martijn-{training_window_size}-{horizon_size}-{window_step_size}" # All of the outputs will be placed in output/outputs_folder_name
+outputs_folder_name = f"politiedemo-{training_window_size}-{horizon_size}-{window_step_size}" # All of the outputs will be placed in output/outputs_folder_name
 predictability_graph_rolling_window_size = 5 # See docstring of Visualizations.DataPredicatability for more info on this parameter.
 
 log_messages = deque(maxlen=5)  
@@ -54,7 +53,7 @@ maindiv = html.Div([
         # html.H2("Scatter mapbox"),
         # dcc.Graph(id="scatter_mapbox_graph"),
         html.H2("EDA"),
-        html.P("The tabs below contain results of the clustering steps. The first tap contains a scattermapbox with the raw data and the results of the clustering, indicated by red circles. The second tap contains a graph with the number of data points per day. "),
+        # html.P("The tabs below contain results of the clustering steps. The first tap contains a scattermapbox with the raw data and the results of the clustering, indicated by red circles. The second tap contains a graph with the number of data points per day. "),
         # dcc.Graph(id="counts_per_day")
         dbc.Tabs(
             id="eda-tabs",
@@ -100,7 +99,9 @@ maindiv = html.Div([
                                 max_date_allowed=date(2023, 12, 31),
                                 initial_visible_month=date(2023, 1, 1),
                                 start_date=date(2023, 1, 1),
-                                end_date=date(2023, 1, 7)
+                                end_date=date(2023, 1, 7),
+                                with_portal=True,
+                                number_of_months_shown=3,
                             ),
                         ]
                     ), className="border-0"
@@ -148,9 +149,9 @@ maindiv = html.Div([
 sidebar = html.Div(
     [
         html.H2("Settings"),
-        html.P(
-            "This panel allows you to change the pipeline's settings."
-        ),
+        # html.P(
+        #     "This panel allows you to change the pipeline's settings."
+        # ),
 
         # Text inputs
         dbc.Label("Min samples:"),
@@ -158,7 +159,7 @@ sidebar = html.Div(
         html.Br(),
 
         dbc.Label("Eps:"),
-        dbc.Input(id='eps', type='text', value=0.01),
+        dbc.Input(id='eps', type='text', value=0.02),
         html.Br(),
 
         dbc.Label("Min unique days:"),
@@ -181,8 +182,8 @@ sidebar = html.Div(
 
 app.layout = html.Div([
     dbc.Row([
-        dbc.Col(sidebar, width=3, className="position-fixed", style={}), 
-        dbc.Col(maindiv, width=9, className="offset-3") 
+        dbc.Col(sidebar, width=2, className="position-fixed", style={}), 
+        dbc.Col(maindiv, width=10, className="offset-2") 
     ])
 ])
 
@@ -433,7 +434,7 @@ def train_model(n_clicks, start_date, end_date, data, horizon_length):
     print(f"Training starts at {train_start} and ends at {train_end}")
 
     train_mask = df["timestamp"].between(train_start, train_end)
-    X_train = df.loc[train_mask, ["day", "weekday", "hour", "window_block"]]
+    X_train = df.loc[train_mask, ["weekday", "hour", "window_block"]]
     y_train = df.loc[train_mask, "location"]
 
     # Train model
@@ -452,7 +453,7 @@ def train_model(n_clicks, start_date, end_date, data, horizon_length):
     df_predictions = DT.add_temporal_features(df_predictions)
 
     # Make predictions and inverse transform them
-    df_predictions['location'] = model.predict(df_predictions[["day", "weekday", "hour", "window_block"]])
+    df_predictions['location'] = model.predict(df_predictions[["weekday", "hour", "window_block"]])
     df_predictions['location'] = label_encoder.inverse_transform(df_predictions['location'])
 
     print(df_predictions.head())
