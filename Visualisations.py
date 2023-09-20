@@ -17,7 +17,7 @@ class HeatmapVisualizer:
     def __init__(self, begin_day: str, end_day: str, df: pd.DataFrame, outputs_folder_name:str, name: str, title: str, verbose: bool = True) -> None:
         """TODO: add docstring!
  
-        df is a pd.DataFrame with "time" column (10-minute intervals) and "location" column (string labels of locations).
+        df is a pd.DataFrame with "timestamp" column (10-minute intervals) and "location" column (string labels of locations).
 
         """
         # First we make sure to validate the user input.
