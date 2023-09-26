@@ -10,7 +10,8 @@ import pickle
 import seaborn as sns
 import plotly.express as px
 import base64
-import io
+from sklearn.preprocessing import LabelEncoder
+import plotly.graph_objects as go
 
 
 class HeatmapVisualizer:
@@ -300,6 +301,106 @@ class HeatmapVisualizer:
         for i, b in enumerate(self.bounds[:-1]):
             val = (self.bounds[i] + self.bounds[i + 1]) / 2
             self.cbar.ax.text(2, val, f"{locations_cut[i]}", ha="left", va="center")
+
+
+class HeatmapVisualizerV2:
+    def __init__(self, begin_day: str, end_day: str, df: pd.DataFrame, outputs_folder_name:str) -> None:
+        """TODO: add docstring!
+ 
+        df is a pd.DataFrame with "timestamp" column (10-minute intervals) and "location" column (string labels of locations).
+
+        """
+        # First we make sure to validate the user input.
+        self.outputs_folder_name = outputs_folder_name
+
+        # Set validated params
+        self.begin_day = begin_day
+        self.end_day = end_day
+
+        start_date = pd.to_datetime(f"{begin_day} 00:00:00")
+        end_date = pd.to_datetime(f"{end_day} 23:50:00")
+
+        self.df = df[df["timestamp"].between(start_date, end_date)].copy()
+
+        self.calculate_heatmap_data()
+        self.make_figure()
+
+    def calculate_heatmap_data(self):
+        # Extract days and times from the timestamp
+        self.df['day'] = self.df['timestamp'].dt.date
+        self.df['time'] = self.df['timestamp'].dt.time
+
+        # Encode location strings as integers
+        encoder = LabelEncoder()
+        self.df['location_encoded'] = encoder.fit_transform(self.df['location'])
+        self.location_labels = encoder.classes_  # Get the original location labels
+
+        self.n_locations = self.df.location_encoded.nunique()
+        # Create a pivot table to prepare data for the heatmap
+        self.pivot_table = self.df.pivot_table(index='day', columns='time', values='location_encoded', aggfunc='first')
+
+        # Convert the pivot table to a NumPy array
+        self.heatmap_data = self.pivot_table.values
+
+    def make_figure(self):
+        # Get the x-axis (time) and y-axis (days) labels
+        x_labels = self.pivot_table.columns
+        y_labels = self.pivot_table.index
+
+        colors = [
+            "#a6cee3",
+            "#1f78b4",
+            "#b2df8a",
+            "#33a02c",
+            "#fb9a99",
+            "#e31a1c",
+            "#fdbf6f",
+            "#ff7f00",
+            "#cab2d6",
+            "#6a3d9a",
+            "#ffff99",
+            "#b15928",
+            "#8dd3c7",
+            "#ffffb3",
+            "#bebada",
+            "#fb8072",
+            "#80b1d3",
+            "#fdb462",
+            "#b3de69",
+            "#fccde5",
+            "#d9d9d9",
+            "#bc80bd",
+            "#ccebc5",
+            "#ffed6f",
+        ]
+
+        vals = np.r_[np.array(0), np.repeat(list(np.linspace(0, 1, self.n_locations+1))[1:-1], 2), np.array(1)]
+        cc_scale = [[j, colors[i//2]] for i, j in enumerate(vals)]
+
+        # Create the heatmap using Plotly
+        self.fig = go.Figure(data=go.Heatmap(
+            z=self.heatmap_data,
+            x=x_labels,
+            y=y_labels,
+            colorscale=cc_scale,
+            # [[i / (self.n_locations - 1), f"rgba{color_map[i]}"] for i in range(self.n_locations)],
+            colorbar=dict(
+                tickvals=np.linspace(1/self.n_locations/2, 1 - 1/self.n_locations/2, self.n_locations) * (self.n_locations - 1), # np.arange(self.n_locations),
+                ticktext=self.location_labels,
+                title='Location'
+            ),
+        ))
+        
+        self.fig.update_layout(
+            xaxis=dict(title='Time of Day'),
+            yaxis=dict(title='Date'),
+            margin=dict(l=0, r=0, t=0, b=0),
+        )
+
+        return self.fig
+
+    def get_fig(self):
+        return self.fig
 
 
 class ModelPerformanceVisualizer():

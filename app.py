@@ -5,7 +5,7 @@ from Cluster import Cluster
 import DataTransformer as DT
 from TrainAndEvaluateV2 import TrainAndEvaluate
 import pandas as pd
-from Visualisations import ModelPerformanceVisualizer, EDA, DataPredicatability, HeatmapVisualizer
+from Visualisations import ModelPerformanceVisualizer, EDA, DataPredicatability, HeatmapVisualizer, HeatmapVisualizerV2
 from collections import deque
 import dash_bootstrap_components as dbc
 from datetime import datetime
@@ -92,7 +92,7 @@ maindiv = html.Div([
                         [
                             # dcc.Graph(id="location_history_heatmap"),
                             dcc.Markdown(["This graph shows the <span style='color:#0d6efd;' children=\"visited locations\" /> of the person between two dates. Use the date range below to change the dates."], dangerously_allow_html=True),
-                            html.Img(id="location_history_heatmap", style={"width":"100%", "min-height":"300px"}),
+                            dcc.Graph(id="location_history_heatmap"),
                             dcc.DatePickerRange(
                                 id='heatmap-picker-range',
                                 min_date_allowed=date(2000, 1, 1),
@@ -139,7 +139,7 @@ maindiv = html.Div([
 
         ], width=2, style={}), 
         dbc.Col([
-            html.Img(id="prediction_heatmap", style={"width":"100%", "min-height":"300px"}),
+            dcc.Graph(id="prediction_heatmap"),
         ], width=10), 
         
     ])
@@ -289,7 +289,7 @@ def show_predictability(_, data):
 
 @app.callback(
     [
-        Output('location_history_heatmap', 'src', allow_duplicate=True), 
+        Output('location_history_heatmap', 'figure', allow_duplicate=True), 
         Output('eda-tabs', 'active_tab', allow_duplicate=True),
         Output('heatmap-picker-range', 'start_date'),
         Output('heatmap-picker-range', 'end_date'),
@@ -315,21 +315,20 @@ def show_location_history_heatmap(_, data):
     end_day = df.timestamp.max()
     start_day = (end_day - pd.Timedelta(days=6))
 
-    encoded_image = HeatmapVisualizer(
-        start_day.strftime("%Y-%m-%d"), end_day.strftime("%Y-%m-%d"), df, outputs_folder_name=outputs_folder_name, verbose=False, name="heatmap", title=""
-    ).get_encoded_fig()
+    fig = HeatmapVisualizerV2(
+        start_day.strftime("%Y-%m-%d"), end_day.strftime("%Y-%m-%d"), df, outputs_folder_name=outputs_folder_name
+    ).get_fig()
 
-    src = f"data:image/png;base64,{encoded_image}"
     add_log_message("Done with location history heatmap")
 
     # Set the min_date_allowed and max_date_allowed (based on the ranges of our dataset)
 
-    return src, "tab-4", start_day.date(), end_day.date(), start_day.date(), df.timestamp.min().date(), df.timestamp.max().date(), df.timestamp.min().date(), df.timestamp.max().date()
+    return fig, "tab-4", start_day.date(), end_day.date(), start_day.date(), df.timestamp.min().date(), df.timestamp.max().date(), df.timestamp.min().date(), df.timestamp.max().date()
 
 
 @callback(
     [
-        Output('location_history_heatmap', 'src'),
+        Output('location_history_heatmap', 'figure'),
         Output('heatmap-picker-range', 'initial_visible_month')
     ],
     [
@@ -350,15 +349,14 @@ def update_location_history_heatmap(start_date, end_date, data):
 
     print(f"Updating heatmap, Start date: {start_date}, end date: {end_date}, len data: {len(df)}")
 
-    encoded_image = HeatmapVisualizer(
-        start_date, end_date, df, outputs_folder_name=outputs_folder_name, verbose=False, name="heatmap", title=""
-    ).get_encoded_fig()
+    fig = HeatmapVisualizerV2(
+        start_date, end_date, df, outputs_folder_name=outputs_folder_name
+    ).get_fig()
 
     # why no update? 
 
     add_log_message("Done with location history heatmap")
-    src = f"data:image/png;base64,{encoded_image}"
-    return src, datetime.strptime(start_date, "%Y-%m-%d").date()
+    return fig, datetime.strptime(start_date, "%Y-%m-%d").date()
     
 
 def run_clustering(df, min_samples, eps, min_unique_days):
@@ -399,7 +397,7 @@ def run_clustering(df, min_samples, eps, min_unique_days):
 
 @app.callback(
     # Inputs: 
-    Output('prediction_heatmap', 'src'),
+    Output('prediction_heatmap', 'figure'),
     [
         Input('train-predict-button', 'n_clicks'),
         Input('heatmap-picker-range-prediction', 'start_date'),
@@ -409,7 +407,7 @@ def run_clustering(df, min_samples, eps, min_unique_days):
     ],
     prevent_initial_call=True
 )
-def train_model(n_clicks, start_date, end_date, data, horizon_length):
+def train_model(_, start_date, end_date, data, horizon_length):
     # Even though we have multiple inputs, this function should only fire when the button 'train-predict-button' is pressed
     if not dash.callback_context.triggered[0]['prop_id'] in ['train-predict-button.n_clicks']:
         raise PreventUpdate
@@ -462,13 +460,11 @@ def train_model(n_clicks, start_date, end_date, data, horizon_length):
     # Build heatmap
     add_log_message("Making heatmap with predictions")
     print(f"df predictions min: {df_predictions.timestamp.min().date().strftime('%Y-%m-%d')} and max: {df_predictions.timestamp.max()}")
-    encoded_image = HeatmapVisualizer(
-        df_predictions.timestamp.min().date().strftime('%Y-%m-%d'), df_predictions.timestamp.max().date().strftime('%Y-%m-%d'), df_predictions[["timestamp", "location"]], outputs_folder_name=outputs_folder_name, verbose=False, name="heatmap", title=""
-    ).get_encoded_fig()
+    fig = HeatmapVisualizerV2(
+        df_predictions.timestamp.min().date().strftime('%Y-%m-%d'), df_predictions.timestamp.max().date().strftime('%Y-%m-%d'), df_predictions[["timestamp", "location"]], outputs_folder_name=outputs_folder_name,
+    ).get_fig()
 
-    src = f"data:image/png;base64,{encoded_image}"
-
-    return src
+    return fig
 
 @app.callback(
     Output("log-display", "children"),
