@@ -418,6 +418,9 @@ def train_model(_, start_date, end_date, data, horizon_length):
         add_log_message("Loading training data from browser storage")
         df['timestamp'] = pd.to_datetime(df['timestamp'], format="mixed")
 
+    # Delete rows where location is "Unknown" since we don't want to predict the value "Unknown"
+    df = df[df.location != "Unknown"]
+    
     # Add temporal features and encode the location labels to integers
     df = DT.add_temporal_features(df)
     label_encoder = le()
@@ -426,7 +429,6 @@ def train_model(_, start_date, end_date, data, horizon_length):
     # Make train_start, train_end, predict_start, predict_end date(time) objects
     train_start = pd.to_datetime(f"{start_date} 00:00:00")
     train_end = pd.to_datetime(f"{end_date} 23:50:00")
-    print(f"Training starts at {train_start} and ends at {train_end}")
 
     train_mask = df["timestamp"].between(train_start, train_end)
     X_train = df.loc[train_mask, ["weekday", "hour", "window_block"]]
@@ -440,8 +442,6 @@ def train_model(_, start_date, end_date, data, horizon_length):
     # Make X_test, starting one day after the last day in the dataset
     start_day = df.timestamp.max() + pd.Timedelta(minutes=10) # Max() always ends at 23:50 so we add 10 mins to get the next day.
     end_day = start_day + pd.Timedelta(days=int(horizon_length)-1, hours=23, minutes=50)
-
-    print(f"Predicting starts at {start_day} and ends at {end_day}")
 
     # Create a DataFrame with the 'time' column and the 'location' column that holds the predicted locations (strings).
     df_predictions = pd.DataFrame({"timestamp": pd.date_range(start=start_day, end=end_day, freq="10T")})
