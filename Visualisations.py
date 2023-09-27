@@ -351,6 +351,9 @@ class HeatmapVisualizerV2:
         x_labels = self.pivot_table.columns
         y_labels = self.pivot_table.index
 
+        # Add day of the week to the y-axis labels
+        y_labels_with_dow = [f"{day} - {day.strftime('%A')[:3]} " for day in y_labels]
+
         colors = [
             "#a6cee3",
             "#1f78b4",
@@ -388,7 +391,7 @@ class HeatmapVisualizerV2:
         self.fig = go.Figure(data=go.Heatmap(
             z=self.heatmap_data,
             x=x_labels,
-            y=y_labels,
+            y=y_labels_with_dow,
             colorscale=cc_scale,
             colorbar=dict(
                 tickvals=np.linspace(1/self.n_locations/2, 1 - 1/self.n_locations/2, self.n_locations) * (self.n_locations - 1), # Center the ticks 

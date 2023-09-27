@@ -4,7 +4,6 @@ from sklearn.cluster import DBSCAN
 import time
 import numpy as np
 import pandas as pd
-import hdbscan
 from sklearn.neighbors import KDTree
 import requests
 import plotly.express as px
