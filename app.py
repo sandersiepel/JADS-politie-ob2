@@ -149,10 +149,7 @@ maindiv = html.Div([
 sidebar = html.Div(
     [
         html.H2("Settings"),
-        # html.P(
-        #     "This panel allows you to change the pipeline's settings."
-        # ),
-
+        
         # Text inputs
         dbc.Label("Min samples:"),
         dbc.Input(id='min_samples', type='text', value=200),
@@ -453,9 +450,6 @@ def train_model(_, start_date, end_date, data, horizon_length):
     # Make predictions and inverse transform them
     df_predictions['location'] = model.predict(df_predictions[["weekday", "hour", "window_block"]])
     df_predictions['location'] = label_encoder.inverse_transform(df_predictions['location'])
-
-    print(df_predictions.head())
-    print(df_predictions.tail())
 
     # Build heatmap
     add_log_message("Making heatmap with predictions")
