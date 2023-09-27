@@ -339,8 +339,12 @@ class HeatmapVisualizerV2:
         # Create a pivot table to prepare data for the heatmap
         self.pivot_table = self.df.pivot_table(index='day', columns='time', values='location_encoded', aggfunc='first')
 
+        print(self.pivot_table)
+
         # Convert the pivot table to a NumPy array
         self.heatmap_data = self.pivot_table.values
+
+        print(self.heatmap_data)
 
     def make_figure(self):
         # Get the x-axis (time) and y-axis (days) labels
@@ -374,7 +378,10 @@ class HeatmapVisualizerV2:
             "#ffed6f",
         ]
 
+        # First we create a list of np.linspace values where each value repeats twice, except for the beginning (0) and the ending (1)
         vals = np.r_[np.array(0), np.repeat(list(np.linspace(0, 1, self.n_locations+1))[1:-1], 2), np.array(1)]
+
+        # Then we make a list that contains lists of the values and the corresponding colors.
         cc_scale = [[j, colors[i//2]] for i, j in enumerate(vals)]
 
         # Create the heatmap using Plotly
@@ -383,9 +390,8 @@ class HeatmapVisualizerV2:
             x=x_labels,
             y=y_labels,
             colorscale=cc_scale,
-            # [[i / (self.n_locations - 1), f"rgba{color_map[i]}"] for i in range(self.n_locations)],
             colorbar=dict(
-                tickvals=np.linspace(1/self.n_locations/2, 1 - 1/self.n_locations/2, self.n_locations) * (self.n_locations - 1), # np.arange(self.n_locations),
+                tickvals=np.linspace(1/self.n_locations/2, 1 - 1/self.n_locations/2, self.n_locations) * (self.n_locations - 1), # Center the ticks 
                 ticktext=self.location_labels,
                 title='Location'
             ),
@@ -396,6 +402,8 @@ class HeatmapVisualizerV2:
             yaxis=dict(title='Date'),
             margin=dict(l=0, r=0, t=0, b=0),
         )
+
+        # self.fig.update_yaxes(autorange="reversed")
 
         return self.fig
 
