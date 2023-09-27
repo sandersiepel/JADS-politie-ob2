@@ -17,10 +17,10 @@ from sklearn.ensemble import RandomForestClassifier
 
 
 # Initialize parameters.
-data_source = "routined"  # Can be either 'google_maps' or 'routined'.
+data_source = "google_maps"  # Can be either 'google_maps' or 'routined'.
 # hours_offset is used to offset the timestamps to account for timezone differences. For google maps, timestamp comes in GMT+0
 # which means that we need to offset it by 2 hours to make it GMT+2 (Dutch timezone). Value must be INT!
-hours_offset = 0 # Should be 0 for routined and 2 for google_maps. 
+hours_offset = 2 # Should be 0 for routined and 2 for google_maps. 
 # begin_date and end_date are used to filter the data for your analysis.
 begin_date = "2023-05-05"
 end_date = "2023-09-19"  # End date is INclusive! 
@@ -242,7 +242,7 @@ def run_pipeline(_, df, n_clicks, min_samples, eps, min_unique_days):
         return dash.no_update
     
     df = pd.DataFrame(df)
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    df['timestamp'] = pd.to_datetime(df['timestamp'], format="mixed")
 
     add_log_message(f"Running pipeline...")
 
@@ -275,7 +275,7 @@ def show_predictability(_, data):
     add_log_message("Making predictability graph...")
 
     df = pd.DataFrame(data)
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    df['timestamp'] = pd.to_datetime(df['timestamp'], format="mixed")
 
     df = DT.add_temporal_features(df)
 
@@ -306,7 +306,7 @@ def show_location_history_heatmap(_, data):
     add_log_message("Making location history heatmap...")
 
     df = pd.DataFrame(data)
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    df['timestamp'] = pd.to_datetime(df['timestamp'], format="mixed")
 
     # Last day of dataset
     end_day = df.timestamp.max()
@@ -342,7 +342,7 @@ def update_location_history_heatmap(start_date, end_date, data):
     
     # TODO: check if data is available (i.e., clustering has been performed)
     df = pd.DataFrame(data)
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    df['timestamp'] = pd.to_datetime(df['timestamp'], format="mixed")
 
     print(f"Updating heatmap, Start date: {start_date}, end date: {end_date}, len data: {len(df)}")
 
@@ -416,7 +416,7 @@ def train_model(_, start_date, end_date, data, horizon_length):
     else:
         df = pd.DataFrame(data)
         add_log_message("Loading training data from browser storage")
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        df['timestamp'] = pd.to_datetime(df['timestamp'], format="mixed")
 
     # Add temporal features and encode the location labels to integers
     df = DT.add_temporal_features(df)

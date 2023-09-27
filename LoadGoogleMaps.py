@@ -52,8 +52,6 @@ class GMData:
         )
 
         # Four options:
-        self.df["timestamp"] = pd.to_datetime(
-            self.df["timestamp"], infer_datetime_format=True
-        )
+        self.df["timestamp"] = pd.to_datetime(self.df["timestamp"], format="mixed")
 
         self.df["timestamp"] = self.df["timestamp"].dt.tz_localize(None)
