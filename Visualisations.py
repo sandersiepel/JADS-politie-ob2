@@ -339,20 +339,16 @@ class HeatmapVisualizerV2:
         # Create a pivot table to prepare data for the heatmap
         self.pivot_table = self.df.pivot_table(index='day', columns='time', values='location_encoded', aggfunc='first')
 
-        print(self.pivot_table)
-
-        # Convert the pivot table to a NumPy array
-        self.heatmap_data = self.pivot_table.values
-
-        print(self.heatmap_data)
+        # Convert the pivot table to a NumPy array. We reverse the data to make sure the days are in the correct order.
+        self.heatmap_data = self.pivot_table.values[::-1]
 
     def make_figure(self):
         # Get the x-axis (time) and y-axis (days) labels
         x_labels = self.pivot_table.columns
         y_labels = self.pivot_table.index
 
-        # Add day of the week to the y-axis labels
-        y_labels_with_dow = [f"{day} - {day.strftime('%A')[:3]} " for day in y_labels]
+        # Add day of the week to the y-axis labels. Here, we reverse the labels (because we also reverse the data)
+        y_labels_with_dow = [f"{day} - {day.strftime('%A')[:3]} " for day in y_labels[::-1]]
 
         colors = [
             "#a6cee3",
@@ -388,11 +384,13 @@ class HeatmapVisualizerV2:
         cc_scale = [[j, colors[i//2]] for i, j in enumerate(vals)]
 
         # Create the heatmap using Plotly
+        # TODO: add hoverdata with probabilities for each location?
         self.fig = go.Figure(data=go.Heatmap(
             z=self.heatmap_data,
             x=x_labels,
             y=y_labels_with_dow,
             colorscale=cc_scale,
+            ygap=2,
             colorbar=dict(
                 tickvals=np.linspace(1/self.n_locations/2, 1 - 1/self.n_locations/2, self.n_locations) * (self.n_locations - 1), # Center the ticks 
                 ticktext=self.location_labels,
@@ -401,9 +399,11 @@ class HeatmapVisualizerV2:
         ))
         
         self.fig.update_layout(
-            xaxis=dict(title='Time of Day'),
-            yaxis=dict(title='Date'),
+            xaxis=dict(title='Time of Day', showgrid=False),
+            yaxis=dict(title='Date', showgrid=False),
             margin=dict(l=0, r=0, t=0, b=0),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)'
         )
 
         # self.fig.update_yaxes(autorange="reversed")

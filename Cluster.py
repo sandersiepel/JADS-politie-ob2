@@ -9,6 +9,8 @@ import requests
 import plotly.express as px
 from typing import Tuple
 import os
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
 class Cluster:
