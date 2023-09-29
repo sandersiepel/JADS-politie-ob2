@@ -14,6 +14,7 @@ import dash
 from datetime import date
 from sklearn.preprocessing import LabelEncoder as le
 from sklearn.ensemble import RandomForestClassifier 
+from datetime import datetime, timedelta
 
 
 # Initialize parameters.
@@ -377,7 +378,7 @@ def run_clustering(df, min_samples, eps, min_unique_days):
             eps=eps,  # The maximum distance between two samples for one to be considered as in the neighborhood of the other. 0.01 = 10m
         )
         .add_locations_to_original_dataframe(
-            export_xlsx=False,  # Export the dataframe to excel file? Useful for analyzing.
+            export_xlsx=True,  # Export the dataframe to excel file? Useful for analyzing.
             name="test",
         )
         .plot_clusters(
@@ -428,6 +429,8 @@ def train_model(_, start_date, end_date, data, horizon_length):
     train_start = pd.to_datetime(f"{start_date} 00:00:00")
     train_end = pd.to_datetime(f"{end_date} 23:50:00")
 
+    print(f"Selected train start: {train_start} and train end: {train_end}")
+
     train_mask = df["timestamp"].between(train_start, train_end)
     X_train = df.loc[train_mask, ["weekday", "hour", "window_block"]]
     y_train = df.loc[train_mask, "location"]
@@ -438,12 +441,22 @@ def train_model(_, start_date, end_date, data, horizon_length):
     model.fit(X_train, y_train) # , sample_weight=np.linspace(0, 1, len(X_train))
 
     # Make X_test, starting one day after the last day in the dataset
-    start_day = df.timestamp.max() + pd.Timedelta(minutes=10) # Max() always ends at 23:50 so we add 10 mins to get the next day.
-    end_day = start_day + pd.Timedelta(days=int(horizon_length)-1, hours=23, minutes=50)
+    current_time = datetime.now()
+    rounded_time = current_time - pd.Timedelta(minutes=current_time.minute % 10, seconds=current_time.second) # Round the current time to the nearest 10-minute interval
+    # formatted_datetime = rounded_time.strftime('%Y-%m-%d %H:%M') # Format the rounded time and date as "YYYY-MM-DD HH:MM"
+
+    print(f"formatted datetime: {rounded_time}, type: {type(rounded_time)}")
+
+    X_test_start = rounded_time # Max() always ends at 23:50 so we add 10 mins to get the next day.
+    X_test_end = X_test_start + pd.Timedelta(days=int(horizon_length)-1, hours=23, minutes=50)
+
+    print(f"X_test start: {X_test_start} and end: {X_test_end}")
 
     # Create a DataFrame with the 'time' column and the 'location' column that holds the predicted locations (strings).
-    df_predictions = pd.DataFrame({"timestamp": pd.date_range(start=start_day, end=end_day, freq="10T")})
+    df_predictions = pd.DataFrame({"timestamp": pd.date_range(start=X_test_start, end=X_test_end, freq="10T")})
     df_predictions = DT.add_temporal_features(df_predictions)
+
+    print(f"df predictions: {df_predictions.head()}")
 
     # Make predictions and inverse transform them
     df_predictions['location'] = model.predict(df_predictions[["weekday", "hour", "window_block"]])

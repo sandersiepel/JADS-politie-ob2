@@ -24,7 +24,7 @@ class Cluster:
         filter_moving: bool = True,
         centroid_k: int = 5,
         min_unique_days: int = 2,
-        scale="city"
+        scale="street"
     ) -> None:
         """init
 
