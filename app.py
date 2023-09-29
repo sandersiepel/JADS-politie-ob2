@@ -22,7 +22,7 @@ data_source = "routined"  # Can be either 'google_maps' or 'routined'.
 # which means that we need to offset it by 2 hours to make it GMT+2 (Dutch timezone). Value must be INT!
 hours_offset = 0 # Should be 0 for routined and 2 for google_maps. 
 # begin_date and end_date are used to filter the data for your analysis.
-begin_date = "2023-01-01"
+begin_date = "2023-07-01"
 end_date = "2023-09-27"  # End date is INclusive! 
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
 fraction = 1
@@ -375,8 +375,6 @@ def run_clustering(df, min_samples, eps, min_unique_days):
         c.run_clustering(
             min_samples=min_samples,  # The number of samples in a neighborhood for a point to be considered as a core point
             eps=eps,  # The maximum distance between two samples for one to be considered as in the neighborhood of the other. 0.01 = 10m
-            algorithm="dbscan",  # Choose either 'dbscan' or 'hdbscan'. If 'hdbscan', only min_samples is required.
-            # min_cluster_size=50,  # Param of HDBSCAN: the minimum size a final cluster can be. The higher this is, the bigger your clusters will be
         )
         .add_locations_to_original_dataframe(
             export_xlsx=False,  # Export the dataframe to excel file? Useful for analyzing.

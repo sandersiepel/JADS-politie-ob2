@@ -24,6 +24,7 @@ class Cluster:
         filter_moving: bool = True,
         centroid_k: int = 5,
         min_unique_days: int = 2,
+        scale="city"
     ) -> None:
         """init
 
@@ -35,6 +36,7 @@ class Cluster:
             filter_moving (boolean): filter out the coordinate points where the subject was moving
             centroid_k (int): Number of nearest neighbors to consider for density calculation (default: 5)
             min_unique_days (int): If post_filter = True, then delete all clusters that have been visited on less than min_unique_days days.
+            scale (str): Scale for OSM data, options are: "street", "city", "country". Default: "street"
         """
 
         # Make a deep copy to not adjust the original df
@@ -46,6 +48,7 @@ class Cluster:
         self.filter_moving = filter_moving
         self.centroid_k = centroid_k
         self.min_unique_days = min_unique_days
+        self.scale = scale
 
         # Run init functions
         if self.pre_filter:
@@ -284,47 +287,12 @@ class Cluster:
         # Add the cluster labels to self.df
         self.df["cluster"] = self.db.labels_.astype(str)
 
-    def _perform_HDBSCAN(self, min_samples: int, min_cluster_size: int) -> None:
-        """Runs HDBSCAN algorithm with min_samples and eps parameters.
-
-        Parameters:
-            min_samples (int): The number of samples in a neighborhood for a point to be considered as a core point
-            min_cluster_size (int): The minimum size a final cluster can be. The higher this is, the bigger your clusters will be
-
-        Returns: None
-
-        """
-
-        if self.verbose:
-            print("Message (clustering): Start clustering...")
-
-        start_time = time.time()
-
-        self.db = hdbscan.HDBSCAN(
-            cluster_selection_epsilon=0.01 / 6371.0088,
-            min_cluster_size=min_cluster_size,
-            gen_min_span_tree=True,
-            metric="haversine",
-            min_samples=min_samples,
-        )
-        self.db.fit(np.radians(self.df[["latitude", "longitude"]].values))
-
-        runtime = time.time() - start_time
-
-        if self.verbose:
-            print(f"Message (clustering): Clustering took {runtime} seconds.")
-
-        # Add the cluster labels to self.df
-        self.df["cluster"] = self.db.labels_.astype(str)
-
-    def run_clustering(self, eps: float, min_samples: int, algorithm: str, min_cluster_size: int = 20) -> Cluster:
+    def run_clustering(self, eps: float, min_samples: int) -> Cluster:
         """This function clusters self.df with the DBSCAN algorithm.
 
         Parameters:
         eps (float): The maximum distance between two samples for one to be considered as in the neighborhood of the other
         min_samples (int): The number of samples in a neighborhood for a point to be considered as a core point
-        algorithm (string): Which algorithm to use (either DBSCAN or HDBSCAN)
-        min_cluster_size (int): The minimum size a final cluster can be. The higher this is, the bigger your clusters will be
 
         Returns: self
 
@@ -335,11 +303,8 @@ class Cluster:
                 f"Message (clustering): Clustering {len(self.df)} data points with DBSCAN, with eps = {eps}, min_samples = {min_samples}. "
             )
 
-        # Run DBSCAN or HDBSCAN?
-        if algorithm.lower() == "dbscan":
-            self._perform_DBSCAN(eps, min_samples)
-        elif algorithm.lower() == "hdbscan":
-            self._perform_HDBSCAN(min_samples, min_cluster_size)
+        # Run DBSCAN
+        self._perform_DBSCAN(eps, min_samples)
 
         # Now that we have our clusters, we build a separate dataset that, for each cluster, contains its
         # center of mass (i.e., centroid) and that centroid's OSM data. TODO: add more descriptive features for the clusters.
@@ -372,6 +337,9 @@ class Cluster:
 
         # Then, for each of the cluster centroids, get their OSM location data
         self._add_OSM_to_clusters()
+
+        print(self.df_centroids.head())
+        print(self.df_centroids.tail())
 
         # Add feature: nr of data points per cluster
         self.df_centroids["num_datapoints"] = self.df_centroids.apply(
@@ -430,17 +398,18 @@ class Cluster:
             )
 
         self.df_centroids["location"] = self.df_centroids.apply(
-            lambda row: self._OSM_request(row["latitude"], row["longitude"]), axis=1,
+            lambda row: self._OSM_request(row["latitude"], row["longitude"], self.scale), axis=1,
         )
 
     @staticmethod
-    def _OSM_request(latitude: float, longitude: float) -> str:
+    def _OSM_request(latitude: float, longitude: float, scale: str) -> str:
         """
         Returns OSM data for a coordinate point
 
         Parameters:
             latitude (float): latitude coordinate value
             longitude (float): longitude coordinate value
+            scale (string): scale to return details (can be steet, city, or country)
 
         Returns:
             list: list with json dicts with OSM data
@@ -449,15 +418,48 @@ class Cluster:
 
         # TODO: make this faster somehow?
 
-        url = f"https://nominatim.openstreetmap.org/search.php?q={latitude},{longitude}&polygon_geojson=1&format=json"
+        url = f"https://nominatim.openstreetmap.org/search.php?q={latitude},{longitude}&polygon_geojson=1&format=json&addressdetails=1#"
         response = requests.get(url, params={})
         data = response.json()
 
-        if not "display_name" in data[0]:
+        def extractVariablesFromOSM(json, vars):
+            # json: dict containing address data (such as city, road, housenumber)
+            # vars: list of the variables of interest
+            
+            res = ""
+            print(json)
+            city = False
+
+            for v in vars:
+                if city and v in ["city", "town", "city_district", "village"]:
+                    # we already have a city/town/village so skip the other options.
+                    continue
+
+                try:
+                    res += (json[v] + " ")
+                    if v in ["city", "town", "city_district", "village"]:
+                        city = True
+                except KeyError:
+                    print(f"{v} is not available in json")
+                    res += ""
+
+            # TODO: trim res 
+
+            print("\n\n")
+            return res
+
+        if not "address" in data[0]:
             print(f"Message (Clustering OSM): could not retrieve OSM data, returning 'unknown' as cluster label.")
             return "unknown"
         else:
-            return data[0]["display_name"]
+            adr_data = data[0]['address'] # dict containing address data
+            if scale == "street":
+                # We want housenumber, road, city. Sometimes, housenumber is not available. 
+                return extractVariablesFromOSM(adr_data, ["road", "house_number", "city", "town", "city_district", "village"]) 
+            if scale == "city":
+                return extractVariablesFromOSM(adr_data, ["city", "city_district", "town", "village", "state", "country"])
+            if scale == "country":
+                return extractVariablesFromOSM(adr_data, ["country"])
 
     def _build_centroid_dataframe(self) -> pd.DataFrame:
         """
@@ -582,11 +584,11 @@ class Cluster:
             hover_data.append("source")
 
         # The location labels are generally quite long, so we only take the first two elements (which is almost always the street address and house number).
-        self.df["location"] = (
-            self.df["location"].str.split(",").str[1]
-            + ", "
-            + self.df["location"].str.split(",").str[0]
-        )
+        # self.df["location"] = (
+        #     self.df["location"].str.split(",").str[1]
+        #     + ", "
+        #     + self.df["location"].str.split(",").str[0]
+        # )
 
         self.fig = px.scatter_mapbox(
             self.df,
@@ -634,8 +636,8 @@ class Cluster:
 
         """
 
-        # Here we add one row manually since we want to keep the "noise" datapoints after the merge. These data points are now merged with the location "no cluster, noise".
-        self.df_centroids.loc[len(self.df_centroids)] = [0, 0, "-1", 10, "black", "no cluster, Noise", 0, 0, 0]
+        # Here we add one row manually since we want to keep the "noise" datapoints after the merge. These data points are now merged with the location "Unknown".
+        self.df_centroids.loc[len(self.df_centroids)] = [0, 0, "-1", 10, "black", "Unknown", 0, 0, 0]
         self.df_centroids.sort_values(by='num_datapoints', inplace=True, ascending=False)
 
         self.df = pd.merge(

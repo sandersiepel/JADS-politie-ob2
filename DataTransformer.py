@@ -19,11 +19,11 @@ def transform_start_end_times(df, outputs_folder_name:str, fill_gaps: bool = Fal
     df = df.drop(columns="group")
 
     # Change the location labels to only include address.
-    df["location"] = (
-        df["location"].str.split(",").str[1]
-        + ", "
-        + df["location"].str.split(",").str[0]
-    )
+    # df["location"] = (
+    #     df["location"].str.split(",").str[1]
+    #     + ", "
+    #     + df["location"].str.split(",").str[0]
+    # )
 
     if fill_gaps:
         df = fill_start_end_time_gaps(df)
