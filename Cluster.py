@@ -338,9 +338,6 @@ class Cluster:
         # Then, for each of the cluster centroids, get their OSM location data
         self._add_OSM_to_clusters()
 
-        print(self.df_centroids.head())
-        print(self.df_centroids.tail())
-
         # Add feature: nr of data points per cluster
         self.df_centroids["num_datapoints"] = self.df_centroids.apply(
             lambda row: len(self.df[self.df.cluster == str(row["cluster"])]), axis=1
@@ -427,25 +424,21 @@ class Cluster:
             # vars: list of the variables of interest
             
             res = ""
-            print(json)
             city = False
 
             for v in vars:
                 if city and v in ["city", "town", "city_district", "village"]:
                     # we already have a city/town/village so skip the other options.
                     continue
-
                 try:
                     res += (json[v] + " ")
                     if v in ["city", "town", "city_district", "village"]:
                         city = True
                 except KeyError:
-                    print(f"{v} is not available in json")
                     res += ""
 
             # TODO: trim res 
 
-            print("\n\n")
             return res
 
         if not "address" in data[0]:

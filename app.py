@@ -23,8 +23,8 @@ data_source = "routined"  # Can be either 'google_maps' or 'routined'.
 # which means that we need to offset it by 2 hours to make it GMT+2 (Dutch timezone). Value must be INT!
 hours_offset = 0 # Should be 0 for routined and 2 for google_maps. 
 # begin_date and end_date are used to filter the data for your analysis.
-begin_date = "2023-07-01"
-end_date = "2023-09-27"  # End date is INclusive! 
+begin_date = "2023-05-01"
+end_date = "2023-10-02"  # End date is INclusive! 
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
 fraction = 1
 # For the model performance class we need to specify the number of training days (range) and testing horizon (also in days)
