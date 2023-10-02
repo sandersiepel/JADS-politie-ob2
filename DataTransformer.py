@@ -2,6 +2,9 @@ import pandas as pd
 
 
 def transform_start_end_times(df, outputs_folder_name:str, fill_gaps: bool = False) -> pd.DataFrame:
+    """ This function transforms the input dataframe into a dataframe where each cluster has a begin- and endtime.
+    
+    """
     # First we select the timestamp, location and cluster columns.
     df = df[["timestamp", "location", "cluster"]].copy()
 

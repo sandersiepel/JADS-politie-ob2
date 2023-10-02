@@ -15,6 +15,7 @@ import plotly.graph_objects as go
 
 
 class HeatmapVisualizer:
+    # OUTDATED VERSION, use HeatmapVisualizerV2 instead! THe v2 relies on only plotly, whereas this version relies on matplotlib.
     def __init__(self, begin_day: str, end_day: str, df: pd.DataFrame, outputs_folder_name:str, name: str, title: str, verbose: bool = True) -> None:
         """TODO: add docstring!
  
