@@ -425,7 +425,7 @@ def show_probabilities(clickData, df_probabilities):
         raise PreventUpdate
     
     df_probabilities = pd.DataFrame(df_probabilities)
-    df_probabilities['timestamp'] = pd.to_datetime(df_probabilities['timestamp'], format="mixed")
+    df_probabilities['timestamp'] = pd.to_datetime(df_probabilities['timestamp'])
 
     x_data = clickData['points'][0]['x']
     y_data = clickData['points'][0]['y']
@@ -433,6 +433,7 @@ def show_probabilities(clickData, df_probabilities):
     # With x_data and y_data we can select the right row in df_probabilities
     data_row = df_probabilities[df_probabilities.timestamp == pd.to_datetime(x_data + " " + y_data.split(" ")[0])].drop('timestamp', axis=1)
     df_row = data_row.melt(var_name='location', value_name='value').sort_values(by='value', ascending=False)
+    df_row['value'] = (df_row['value'] * 100).round(2)
 
     table = go.Table(
         header=dict(values=["Location", "Value"]),
