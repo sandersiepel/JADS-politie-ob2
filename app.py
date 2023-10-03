@@ -1,7 +1,6 @@
 from dash import Dash, dcc, html, Input, Output, State, callback
 from dash.exceptions import PreventUpdate
 import DataLoader as DL
-from Cluster import Cluster
 import DataTransformer as DT
 from TrainAndEvaluateV2 import TrainAndEvaluate
 import pandas as pd
@@ -12,9 +11,10 @@ from datetime import datetime
 import plotly.express as px
 import dash
 from datetime import date
-from sklearn.preprocessing import LabelEncoder as le
-from sklearn.ensemble import RandomForestClassifier 
+from sklearn.preprocessing import LabelEncoder as le 
 from datetime import datetime, timedelta
+from app_functions import *
+import plotly.graph_objs as go
 
 
 # Initialize parameters.
@@ -142,6 +142,8 @@ maindiv = html.Div([
         dbc.Col([
             dcc.Graph(id="prediction_heatmap"),
         ], width=10), 
+
+        dcc.Graph(id="probabilities-table"),
         
     ])
 ], style=CONTENT_STYLE)
@@ -174,6 +176,7 @@ sidebar = html.Div(
         html.Div(id="output"), # For chaining output of function 
         dcc.Store(id='data-store'),
         dcc.Store(id='data-store2'),
+        dcc.Store(id='data-store3'),
     ],
     style=SIDEBAR_STYLE,
 )
@@ -248,7 +251,7 @@ def run_pipeline(_, df, n_clicks, min_samples, eps, min_unique_days):
     add_log_message(f"Running pipeline...")
 
     # Step 2. Run clustering. Returns df and a fig with a scattermapbox. 
-    df, fig = run_clustering(df, int(min_samples), float(eps), int(min_unique_days))
+    df, fig = run_clustering(df, int(min_samples), float(eps), int(min_unique_days), outputs_folder_name, add_log_message)
 
     # Step 3. Transform data
     add_log_message(f"Transforming and resampling the dataset...")
@@ -355,45 +358,14 @@ def update_location_history_heatmap(start_date, end_date, data):
 
     add_log_message("Done with location history heatmap")
     return fig, datetime.strptime(start_date, "%Y-%m-%d").date()
-    
 
-def run_clustering(df, min_samples, eps, min_unique_days):
-    add_log_message(f"Starting the clustering...")
-    # Step 2. Run clustering
-    c = Cluster(
-        df,  # Input dataset (with latitude, longitude, timestamp columns)
-        outputs_folder_name=outputs_folder_name, 
-        verbose=True,  # Do we want to see print statements?
-        pre_filter=True,  # Apply filters to the data before the clustering (such as removing moving points)
-        post_filter=True,  # Apply filters to the data/clusters after the clustering (such as deleting homogeneous clusters)
-        filter_moving=True,  # Do we want to delete the data points where the subject was moving?
-        centroid_k=10,  # Number of nearest neighbors to consider for density calculation (for cluster centroids)
-        min_unique_days=min_unique_days,  # If post_filter = True, then delete all clusters that have been visited on less than min_unique_days days.
-    )
-
-    # Then we run the clustering and visualisation
-    df = (
-        c.run_clustering(
-            min_samples=min_samples,  # The number of samples in a neighborhood for a point to be considered as a core point
-            eps=eps,  # The maximum distance between two samples for one to be considered as in the neighborhood of the other. 0.01 = 10m
-        )
-        .add_locations_to_original_dataframe(
-            export_xlsx=True,  # Export the dataframe to excel file? Useful for analyzing.
-            name="test",
-        )
-        .plot_clusters(
-            filter_noise=False,  # Remove the -1 labels (i.e., noise) before plotting the clusters
-        )
-        .df  # These functions return 'self' so we can chain them and easily access the df attribute (for input to further modeling/visualization).
-    )
-
-    add_log_message(f"Done with clustering")
-
-    return df, c.fig
 
 @app.callback(
     # Inputs: 
-    Output('prediction_heatmap', 'figure'),
+    [
+        Output('prediction_heatmap', 'figure'),
+        Output('data-store3', 'data'),
+    ],
     [
         Input('train-predict-button', 'n_clicks'),
         Input('heatmap-picker-range-prediction', 'start_date'),
@@ -425,51 +397,52 @@ def train_model(_, start_date, end_date, data, horizon_length):
     label_encoder = le()
     df.location = label_encoder.fit_transform(df.location)
 
-    # Make train_start, train_end, predict_start, predict_end date(time) objects
-    train_start = pd.to_datetime(f"{start_date} 00:00:00")
-    train_end = pd.to_datetime(f"{end_date} 23:50:00")
+    # Make training datasets
+    X_train, y_train = make_train_data(start_date, end_date, df)
 
-    print(f"Selected train start: {train_start} and train end: {train_end}")
-
-    train_mask = df["timestamp"].between(train_start, train_end)
-    X_train = df.loc[train_mask, ["weekday", "hour", "window_block"]]
-    y_train = df.loc[train_mask, "location"]
-
-    # Train model
-    add_log_message("Training ML model")
-    model = RandomForestClassifier()
-    model.fit(X_train, y_train) # , sample_weight=np.linspace(0, 1, len(X_train))
-
-    # Make X_test, starting one day after the last day in the dataset
-    current_time = datetime.now()
-    rounded_time = current_time - pd.Timedelta(minutes=current_time.minute % 10, seconds=current_time.second) # Round the current time to the nearest 10-minute interval
-    # formatted_datetime = rounded_time.strftime('%Y-%m-%d %H:%M') # Format the rounded time and date as "YYYY-MM-DD HH:MM"
-
-    print(f"formatted datetime: {rounded_time}, type: {type(rounded_time)}")
-
-    X_test_start = rounded_time # Max() always ends at 23:50 so we add 10 mins to get the next day.
-    X_test_end = X_test_start + pd.Timedelta(days=int(horizon_length)-1, hours=23, minutes=50)
-
-    print(f"X_test start: {X_test_start} and end: {X_test_end}")
-
-    # Create a DataFrame with the 'time' column and the 'location' column that holds the predicted locations (strings).
-    df_predictions = pd.DataFrame({"timestamp": pd.date_range(start=X_test_start, end=X_test_end, freq="10T")})
-    df_predictions = DT.add_temporal_features(df_predictions)
-
-    print(f"df predictions: {df_predictions.head()}")
-
-    # Make predictions and inverse transform them
-    df_predictions['location'] = model.predict(df_predictions[["weekday", "hour", "window_block"]])
-    df_predictions['location'] = label_encoder.inverse_transform(df_predictions['location'])
+    # Train model and make predictions
+    df_predictions, df_probabilities = train_and_predict(add_log_message, X_train, y_train, horizon_length, label_encoder)
 
     # Build heatmap
     add_log_message("Making heatmap with predictions")
-    print(f"df predictions min: {df_predictions.timestamp.min().date().strftime('%Y-%m-%d')} and max: {df_predictions.timestamp.max()}")
     fig = HeatmapVisualizerV2(
         df_predictions.timestamp.min().date().strftime('%Y-%m-%d'), df_predictions.timestamp.max().date().strftime('%Y-%m-%d'), df_predictions[["timestamp", "location"]], outputs_folder_name=outputs_folder_name,
     ).get_fig()
+    
+    return fig, df_probabilities.to_dict('records')
+
+
+@app.callback(
+    Output('probabilities-table', 'figure'), 
+    [
+        Input('prediction_heatmap', 'clickData'), 
+        Input('data-store3', 'data')
+    ], 
+    prevent_initial_call=True)
+def show_probabilities(clickData, df_probabilities):
+    # Only fire when user clicks in the heatmap
+    if not dash.callback_context.triggered[0]['prop_id'] in ['prediction_heatmap.clickData']:
+        raise PreventUpdate
+    
+    df_probabilities = pd.DataFrame(df_probabilities)
+    df_probabilities['timestamp'] = pd.to_datetime(df_probabilities['timestamp'], format="mixed")
+
+    x_data = clickData['points'][0]['x']
+    y_data = clickData['points'][0]['y']
+
+    # With x_data and y_data we can select the right row in df_probabilities
+    data_row = df_probabilities[df_probabilities.timestamp == pd.to_datetime(x_data + " " + y_data.split(" ")[0])].drop('timestamp', axis=1)
+    df_row = data_row.melt(var_name='location', value_name='value').sort_values(by='value', ascending=False)
+
+    table = go.Table(
+        header=dict(values=["Location", "Value"]),
+        cells=dict(values=[df_row['location'], df_row['value']])
+    )
+
+    fig = go.Figure(data=[table])
 
     return fig
+
 
 @app.callback(
     Output("log-display", "children"),
@@ -478,15 +451,11 @@ def train_model(_, start_date, end_date, data, horizon_length):
 def update_log_display(_):
     log_texts = "\n".join(log_messages)
     return log_texts
-
+    
 # Function to add a new log message
 def add_log_message(message):
     log_messages.append(get_time() + message)
 
-def get_time():
-    now = datetime.now()
-    return now.strftime("%H:%M:%S") + ": "
-    
 
 if __name__ == '__main__':
     app.run(debug=True)
