@@ -10,7 +10,6 @@ def get_time():
     return now.strftime("%H:%M:%S") + ": "
 
 def run_clustering(df:pd.DataFrame, min_samples:int, eps:float, min_unique_days:int, outputs_folder_name:str, add_log_message):
-    add_log_message(f"Starting the clustering...")
     # Step 2. Run clustering
     c = Cluster(
         df,  # Input dataset (with latitude, longitude, timestamp columns)

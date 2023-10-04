@@ -18,20 +18,13 @@ import plotly.graph_objs as go
 
 
 # Initialize parameters.
-data_source = "routined"  # Can be either 'google_maps' or 'routined'.
-# hours_offset is used to offset the timestamps to account for timezone differences. For google maps, timestamp comes in GMT+0
-# which means that we need to offset it by 2 hours to make it GMT+2 (Dutch timezone). Value must be INT!
-hours_offset = 0 # Should be 0 for routined and 2 for google_maps. 
 # begin_date and end_date are used to filter the data for your analysis.
 begin_date = "2023-05-01"
 end_date = "2023-10-02"  # End date is INclusive! 
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
 fraction = 1
 # For the model performance class we need to specify the number of training days (range) and testing horizon (also in days)
-training_window_size = 100
-horizon_size = 30
-window_step_size = 1
-outputs_folder_name = f"politiedemo-{training_window_size}-{horizon_size}-{window_step_size}" # All of the outputs will be placed in output/outputs_folder_name
+outputs_folder_name = f"politiedemo" # All of the outputs will be placed in output/outputs_folder_name
 predictability_graph_rolling_window_size = 5 # See docstring of Visualizations.DataPredicatability for more info on this parameter.
 
 log_messages = deque(maxlen=5)  
@@ -49,13 +42,14 @@ CONTENT_STYLE = {
 
 
 maindiv = html.Div([
+    # First a few data store components to save data (mostly dataframes) in between functions. 
+    dcc.Store(id='data-store'),
+    dcc.Store(id='data-store2'),
+    dcc.Store(id='data-store3'),
+
+    # First row is about 
     dbc.Row([
-        # This row contains the cards for EDA (scatter mapbox, records per day)
-        # html.H2("Scatter mapbox"),
-        # dcc.Graph(id="scatter_mapbox_graph"),
-        html.H2("EDA"),
-        # html.P("The tabs below contain results of the clustering steps. The first tap contains a scattermapbox with the raw data and the results of the clustering, indicated by red circles. The second tap contains a graph with the number of data points per day. "),
-        # dcc.Graph(id="counts_per_day")
+        html.H2("Find Significant Locations"),
         dbc.Tabs(
             id="eda-tabs",
             active_tab="tab-1",
@@ -64,17 +58,61 @@ maindiv = html.Div([
                 dbc.Tab(dbc.Card(
                     dbc.CardBody(
                         [
-                            dcc.Markdown(["This graph shows the <span style='color:#0d6efd;' children=\"number of datapoints per day\" /> in the dataset."], dangerously_allow_html=True),
-                            dcc.Graph(id="counts_per_day"),
+                            dbc.Row([
+                                dbc.Col([
+                                    html.B("Settings"),html.Br(), 
+
+                                    dbc.Label("Data source:"),
+                                    dcc.Dropdown(
+                                        options=[
+                                            {'label': 'Google Maps', 'value': 'google_maps'},
+                                            {'label': 'Routined', 'value': 'routined'},
+                                        ], # TODO: make these options dynamic, based on the available datasets in the /data folder.
+                                        value='routined', id='dd-data-source'
+                                    ),
+                                    html.Br(),
+
+                                    dbc.Label("Hours offset:"),
+                                    dbc.Input(id='i-hours-offset', type='text', value=0),
+                                    html.Br(),
+
+                                    dbc.Button('Load Data', id='btn-load-data', n_clicks=0, color="primary", className="me-1", style={"width":"100%"}),
+                                ], width=2),
+                                dbc.Col([
+                                    dcc.Markdown(["This graph shows the <span style='color:#0d6efd;' children=\"number of datapoints per day\" /> in the dataset."], dangerously_allow_html=True),
+                                    dcc.Graph(id="counts_per_day"),
+                                ], width=10)
+                            ]),
                         ]
                     ), className="border-0"
-                ), label="Records Per Day", tab_id="tab-1"),
+                ), label="Load Dataset", tab_id="tab-1"),
                 
                 dbc.Tab(dbc.Card(
                     dbc.CardBody(
                         [
-                            dcc.Markdown(["This graph shows the <span style='color:#0d6efd;' children=\"identified clusters and their centroids\" /> that were found by the DBSCAN algorithm."], dangerously_allow_html=True),
-                            dcc.Graph(id="scatter_mapbox_graph"),
+                            dbc.Row([
+                                dbc.Col([
+                                    html.B("Settings"), html.Br(),
+                                    # Text inputs
+                                    dbc.Label("Min samples:"),
+                                    dbc.Input(id='min_samples', type='text', value=200),
+                                    html.Br(),
+
+                                    dbc.Label("Eps:"),
+                                    dbc.Input(id='eps', type='text', value=0.02),
+                                    html.Br(),
+
+                                    dbc.Label("Min unique days:"),
+                                    dbc.Input(id='min_unique_days', type='text', value=1),
+                                    html.Br(),
+                                    dbc.Button('Run Clustering', id='btn-clustering', n_clicks=0, color="primary", className="me-1", style={"width":"100%"}),
+                                    # TODO: add date range (by default entire dataset) to select clustering data
+                                ], width=2),
+                                dbc.Col([
+                                    dcc.Markdown(["This graph shows the <span style='color:#0d6efd;' children=\"identified clusters and their centroids\" /> that were found by the DBSCAN algorithm."], dangerously_allow_html=True),
+                                    dcc.Graph(id="scatter_mapbox_graph"),
+                                ], width=10)
+                            ]),
                         ]
                     ), className="border-0"
                 ), label="Scatter Mapbox", tab_id="tab-2"),
@@ -93,7 +131,6 @@ maindiv = html.Div([
                         [
                             # dcc.Graph(id="location_history_heatmap"),
                             dcc.Markdown(["This graph shows the <span style='color:#0d6efd;' children=\"visited locations\" /> of the person between two dates. Use the date range below to change the dates."], dangerously_allow_html=True),
-                            dcc.Graph(id="location_history_heatmap"),
                             dcc.DatePickerRange(
                                 id='heatmap-picker-range',
                                 min_date_allowed=date(2000, 1, 1),
@@ -104,6 +141,8 @@ maindiv = html.Div([
                                 with_portal=True,
                                 number_of_months_shown=3,
                             ),
+                            html.Br(), html.Br(),
+                            dcc.Graph(id="location_history_heatmap"),
                         ]
                     ), className="border-0"
                 ), label="Location History", tab_id="tab-4"),                
@@ -112,6 +151,7 @@ maindiv = html.Div([
         )
 
     ], style={"minHeight": "50px", "paddingBottom": "20px"}),
+
     dbc.Row([
         html.H2("Predicting"),
         html.P("After running the clustering, you can make predictions. Select the training period for the model, select the horizon, and click on 'make predictions'. "),
@@ -151,32 +191,13 @@ maindiv = html.Div([
 
 sidebar = html.Div(
     [
-        html.H2("Settings"),
-        
-        # Text inputs
-        dbc.Label("Min samples:"),
-        dbc.Input(id='min_samples', type='text', value=200),
-        html.Br(),
-
-        dbc.Label("Eps:"),
-        dbc.Input(id='eps', type='text', value=0.02),
-        html.Br(),
-
-        dbc.Label("Min unique days:"),
-        dbc.Input(id='min_unique_days', type='text', value=1),
-        html.Br(),
-
-        dbc.Button('Run Clustering', id='submit-val', n_clicks=0, color="primary", className="me-1", style={"width":"100%"}),
-
+        html.H2("Log Messages"),
         # Elements for log messages.
         # html.Div(id='container-button-basic', style={"margin-top":"10px", "overflow":"auto", "height":"400px"}),
         dcc.Interval(id='interval-component', interval=300, n_intervals=0),  # Update every 2 seconds
         html.Div(id="log-display", style={"whiteSpace":"pre-wrap", "paddingTop":"15px", "height":"100%", "overflow":"auto"}),
 
         html.Div(id="output"), # For chaining output of function 
-        dcc.Store(id='data-store'),
-        dcc.Store(id='data-store2'),
-        dcc.Store(id='data-store3'),
     ],
     style=SIDEBAR_STYLE,
 )
@@ -203,18 +224,22 @@ def update_year_prediction(selected_year):
         Output('counts_per_day', 'figure'),
         Output('data-store', 'data')
     ],
-    Input('submit-val', 'n_clicks'),
+    [
+        Input('btn-load-data', 'n_clicks'),
+        State('dd-data-source', 'value'),
+        State('i-hours-offset', 'value'),
+    ],
     prevent_initial_call=True
 )
-def run_eda(_):    
+def run_eda(_, source, offset):    
     add_log_message(f"Loading the dataset...")
 
     df, fig = DL.load_data(
-        data_source,
+        source,
         begin_date,
         end_date,
         fraction,
-        hours_offset,
+        int(offset),
         outputs_folder_name=outputs_folder_name,
         verbose=True,
         perform_eda=True
@@ -228,47 +253,43 @@ def run_eda(_):
 @app.callback(
     [
         Output('scatter_mapbox_graph', 'figure'),
-        Output('data-store2', 'data'), 
-        Output('eda-tabs', 'active_tab', allow_duplicate=True)
+        Output('data-store2', 'data')
     ],
     [
-        Input('counts_per_day', 'figure'),
+        Input('btn-clustering', 'n_clicks'),
         Input('data-store', 'data'),
-        State('submit-val', 'n_clicks'),
         State('min_samples', 'value'),
         State('eps', 'value'),
         State('min_unique_days', 'value')
     ],
     prevent_initial_call=True  
 )
-def run_pipeline(_, df, n_clicks, min_samples, eps, min_unique_days):
-    if n_clicks <= 0:
-        return dash.no_update
+def run_pipeline(_, df, min_samples, eps, min_unique_days):
+    # Do not execute this function if data-store has changed, but only when btn-clustering has been clicked.
+    if not dash.callback_context.triggered[0]['prop_id'] == 'btn-clustering.n_clicks':
+        raise PreventUpdate
     
+    add_log_message(f"Starting the clustering")
+
     df = pd.DataFrame(df)
     df['timestamp'] = pd.to_datetime(df['timestamp'], format="mixed")
-
-    add_log_message(f"Running pipeline...")
 
     # Step 2. Run clustering. Returns df and a fig with a scattermapbox. 
     df, fig = run_clustering(df, int(min_samples), float(eps), int(min_unique_days), outputs_folder_name, add_log_message)
 
     # Step 3. Transform data
-    add_log_message(f"Transforming and resampling the dataset...")
+    add_log_message(f"Transforming and resampling the dataset")
     df = DT.transform_start_end_times(df, outputs_folder_name, fill_gaps=True)
 
     # Step 4. Resample dataset. This saves the data at output/outputs_folder_name/resampled_df_10_min.xlsx.
     df = DT.resample_df(df, outputs_folder_name)
     add_log_message(f"Done, saving datasets at output/{outputs_folder_name}")
 
-    return fig, df.to_dict('records'), "tab-2"
+    return fig, df.to_dict('records')
 
 
 @app.callback(
-    [
-        Output('predictability_graph', 'figure'), 
-        Output('eda-tabs', 'active_tab', allow_duplicate=True)
-    ],
+    Output('predictability_graph', 'figure'),
     [
         Input('scatter_mapbox_graph', 'figure'), 
         Input('data-store2', 'data'), 
@@ -285,13 +306,12 @@ def show_predictability(_, data):
 
     fig = DataPredicatability(df, predictability_graph_rolling_window_size).run()
     add_log_message("Done with predictability graph")
-    return fig, "tab-3"
+    return fig
 
 
 @app.callback(
     [
         Output('location_history_heatmap', 'figure', allow_duplicate=True), 
-        Output('eda-tabs', 'active_tab', allow_duplicate=True),
         Output('heatmap-picker-range', 'start_date'),
         Output('heatmap-picker-range', 'end_date'),
         Output('heatmap-picker-range', 'initial_visible_month', allow_duplicate=True),
@@ -324,7 +344,7 @@ def show_location_history_heatmap(_, data):
 
     # Set the min_date_allowed and max_date_allowed (based on the ranges of our dataset)
 
-    return fig, "tab-4", start_day.date(), end_day.date(), start_day.date(), df.timestamp.min().date(), df.timestamp.max().date(), df.timestamp.min().date(), df.timestamp.max().date()
+    return fig, start_day.date(), end_day.date(), start_day.date(), df.timestamp.min().date(), df.timestamp.max().date(), df.timestamp.min().date(), df.timestamp.max().date()
 
 
 @callback(
@@ -348,13 +368,9 @@ def update_location_history_heatmap(start_date, end_date, data):
     df = pd.DataFrame(data)
     df['timestamp'] = pd.to_datetime(df['timestamp'], format="mixed")
 
-    print(f"Updating heatmap, Start date: {start_date}, end date: {end_date}, len data: {len(df)}")
-
     fig = HeatmapVisualizerV2(
         start_date, end_date, df, outputs_folder_name=outputs_folder_name
     ).get_fig()
-
-    # why no update? 
 
     add_log_message("Done with location history heatmap")
     return fig, datetime.strptime(start_date, "%Y-%m-%d").date()
