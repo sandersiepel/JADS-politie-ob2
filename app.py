@@ -180,12 +180,21 @@ maindiv = html.Div([
 
         ], width=2, style={}), 
         dbc.Col([
-            dcc.Graph(id="prediction_heatmap"),
+            html.Div([
+                dcc.Graph(id="prediction_heatmap"),
+            ], style={"width":"100%"}),
         ], width=10), 
-
-        dcc.Graph(id="probabilities-table"),
         
-    ])
+    ]),
+
+    dbc.Row([
+        dbc.Col([
+
+        ], width=2),
+        dbc.Col([
+            dcc.Graph(id="probabilities-table"),
+        ])
+    ]),
 ], style=CONTENT_STYLE)
 
 
@@ -452,7 +461,7 @@ def show_probabilities(clickData, df_probabilities):
     df_row['value'] = (df_row['value'] * 100).round(2)
 
     table = go.Table(
-        header=dict(values=["Location", "Value"]),
+        header=dict(values=["Location", "Probability (0-100%)"]),
         cells=dict(values=[df_row['location'], df_row['value']])
     )
 
