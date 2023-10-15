@@ -446,6 +446,7 @@ class Cluster:
             return "unknown"
         else:
             adr_data = data[0]['address'] # dict containing address data
+            # TODO: add scale as an option in the interface
             if scale == "street":
                 # We want housenumber, road, city. Sometimes, housenumber is not available. 
                 return extractVariablesFromOSM(adr_data, ["road", "house_number", "city", "town", "city_district", "village"]) 
