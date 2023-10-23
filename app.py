@@ -47,6 +47,26 @@ maindiv = html.Div([
     dcc.Store(id='data-store2'),
     dcc.Store(id='data-store3'),
 
+    dbc.Modal(
+        [
+            dbc.ModalHeader(dbc.ModalTitle("Probabilities"), close_button=True),
+            dbc.ModalBody(dcc.Graph(id="probabilities-table"), id='placeholderModal'),
+            dbc.ModalFooter(
+                dbc.Button(
+                    "Close",
+                    id="closeButton",
+                    className="ms-auto",
+                    n_clicks=0,
+                )
+            ),
+        ],
+        id="modalExample",
+        centered=True,
+        is_open=False,
+        style={"width":"100%"}
+    ),
+
+
     # First row is about 
     dbc.Row([
         html.H2("Find Significant Locations"),
@@ -165,7 +185,7 @@ maindiv = html.Div([
                 id='heatmap-picker-range-prediction',
                 min_date_allowed=date(2000, 1, 1),
                 max_date_allowed=date(2023, 12, 31),
-                initial_visible_month=date(2023, 1, 1),
+                initial_visible_month=date(2023, 7, 1),
                 with_portal=True,
                 clearable=True,
                 number_of_months_shown=3,
@@ -187,14 +207,6 @@ maindiv = html.Div([
         
     ]),
 
-    dbc.Row([
-        dbc.Col([
-
-        ], width=2),
-        dbc.Col([
-            dcc.Graph(id="probabilities-table"),
-        ])
-    ]),
 ], style=CONTENT_STYLE)
 
 
@@ -438,7 +450,10 @@ def train_model(_, start_date, end_date, data, horizon_length):
 
 
 @app.callback(
-    Output('probabilities-table', 'figure'), 
+    [
+        Output('probabilities-table', 'figure'),
+        Output('modalExample', 'is_open'),
+    ],
     [
         Input('prediction_heatmap', 'clickData'), 
         Input('data-store3', 'data')
@@ -467,7 +482,7 @@ def show_probabilities(clickData, df_probabilities):
 
     fig = go.Figure(data=[table])
 
-    return fig
+    return fig, True
 
 
 @app.callback(
@@ -482,6 +497,13 @@ def update_log_display(_):
 def add_log_message(message):
     log_messages.append(get_time() + message)
 
+@callback(
+    Output('modalExample', 'is_open', allow_duplicate=True),
+    Input('closeButton', 'n_clicks'),
+    prevent_initial_call=True
+)
+def close_modal(_):
+    return False
 
 if __name__ == '__main__':
     app.run(debug=True)
