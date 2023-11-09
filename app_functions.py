@@ -9,7 +9,7 @@ def get_time():
     now = datetime.now()
     return now.strftime("%H:%M:%S") + ": "
 
-def run_clustering(df:pd.DataFrame, min_samples:int, eps:float, min_unique_days:int, outputs_folder_name:str, add_log_message):
+def run_clustering(df:pd.DataFrame, min_samples:int, eps:float, min_unique_days:int, outputs_folder_name:str, add_log_message, scale:str):
     # Step 2. Run clustering
     c = Cluster(
         df,  # Input dataset (with latitude, longitude, timestamp columns)
@@ -20,6 +20,7 @@ def run_clustering(df:pd.DataFrame, min_samples:int, eps:float, min_unique_days:
         filter_moving=True,  # Do we want to delete the data points where the subject was moving?
         centroid_k=10,  # Number of nearest neighbors to consider for density calculation (for cluster centroids)
         min_unique_days=min_unique_days,  # If post_filter = True, then delete all clusters that have been visited on less than min_unique_days days.
+        scale=scale
     )
 
     # Then we run the clustering and visualisation

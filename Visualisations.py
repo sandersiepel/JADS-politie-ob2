@@ -520,10 +520,11 @@ class EDA():
         self.fig.write_html(f"output/{self.outputs_folder_name}/EDA_records_per_day.html") 
 
 
-class DataPredicatability():
-    def __init__(self, df: pd.DataFrame, rolling_window_size=10):
+class DataPredictability():
+    def __init__(self, df: pd.DataFrame, features:list, rolling_window_size=10):
         self.df = df # Df should contain the columns: timestamp, location, and the temporal features. Basically, this is the df after loading the resampled 10-min block dataset + the temp features.
         self.rolling_window_size = rolling_window_size # TODO: add documentation for this parameter.
+        self.features = features
 
     def run(self):
         data = self.make_dataset()
@@ -536,7 +537,7 @@ class DataPredicatability():
         this_day_values = []
 
         for _, row in self.df.iterrows():
-            m = (row['weekday'], row['hour'], row['window_block'])
+            m = tuple(row[feature] for feature in self.features if feature in row)
 
             if not 'data' in res[m]: res[m]['data'] = {}
 
@@ -589,6 +590,9 @@ class DataPredicatability():
                 x=df_plot.Time.values.tolist(),
                 y=y
             ))
+
+        average_score = df_plot['Score'].mean()
+        fig.add_hline(y=average_score, line=dict(color='red', width=2, dash='dash'), name="Average Score")
 
         fig.update_layout(xaxis_title="Time", yaxis_title="Predictability", margin=dict(l=0, r=0, t=0, b=0))
 

@@ -13,7 +13,7 @@ begin_date = "2023-05-01" # Begin_date and end_date filter the loaded dataset
 end_date = "2023-10-02"
 fraction = 1
 outputs_folder_name = "politiedemo" # All of the outputs will be placed in output/outputs_folder_name
-# predictability_graph_rolling_window_size = 5 # See docstring of Visualizations.DataPredicatability for more info on this parameter.
+# predictability_graph_rolling_window_size = 5 # See docstring of Visualizations.DataPredictability for more info on this parameter.
 
 
 dash.register_page(__name__, path='/')

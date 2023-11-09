@@ -4,7 +4,7 @@ import DataLoader as DL
 import DataTransformer as DT
 from TrainAndEvaluateV2 import TrainAndEvaluate
 import pandas as pd
-from Visualisations import ModelPerformanceVisualizer, EDA, DataPredicatability, HeatmapVisualizer, HeatmapVisualizerV2
+from Visualisations import ModelPerformanceVisualizer, EDA, DataPredictability, HeatmapVisualizer, HeatmapVisualizerV2
 from collections import deque
 import dash_bootstrap_components as dbc
 from datetime import datetime
@@ -19,13 +19,14 @@ import plotly.graph_objs as go
 
 # Initialize parameters.
 # begin_date and end_date are used to filter the data for your analysis.
-begin_date = "2023-05-01"
+begin_date = "2023-01-01"
 end_date = "2023-10-02"  # End date is INclusive! 
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
 fraction = 1
 # For the model performance class we need to specify the number of training days (range) and testing horizon (also in days)
 outputs_folder_name = f"politiedemo" # All of the outputs will be placed in output/outputs_folder_name
-predictability_graph_rolling_window_size = 5 # See docstring of Visualizations.DataPredicatability for more info on this parameter.
+predictability_graph_rolling_window_size = 5 # See docstring of Visualizations.DataPredictability for more info on this parameter.
+features_list = {"day": "Day of the Month", "weekday": "Day of the Week", "hour": "Hour of the Day", "window_block": "Block of the Hour"}
 
 log_messages = deque(maxlen=5)  
 app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
@@ -69,7 +70,7 @@ maindiv = html.Div([
 
     # First row is about 
     dbc.Row([
-        html.H2("Find Significant Locations"),
+        html.H2("Significant Locations"),
         dbc.Tabs(
             id="eda-tabs",
             active_tab="tab-1",
@@ -80,8 +81,6 @@ maindiv = html.Div([
                         [
                             dbc.Row([
                                 dbc.Col([
-                                    html.B("Settings"),html.Br(), 
-
                                     dbc.Label("Data source:"),
                                     dcc.Dropdown(
                                         options=[
@@ -112,7 +111,18 @@ maindiv = html.Div([
                         [
                             dbc.Row([
                                 dbc.Col([
-                                    html.B("Settings"), html.Br(),
+                                    dbc.Label("Scale:"),
+                                    dcc.Dropdown(
+                                        options=[
+                                            {'label': 'Street', 'value': 'street'},
+                                            {'label': 'City', 'value': 'city'},
+                                            {'label': 'Country', 'value': 'country'},
+                                        ], # TODO: make these options dynamic, based on the available datasets in the /data folder.
+                                        value='street', id='dd-scale'
+                                    ),
+
+                                    html.Br(),
+
                                     # Text inputs
                                     dbc.Label("Min samples:"),
                                     dbc.Input(id='min_samples', type='text', value=200),
@@ -135,16 +145,32 @@ maindiv = html.Div([
                             ]),
                         ]
                     ), className="border-0"
-                ), label="Scatter Mapbox", tab_id="tab-2"),
+                ), label="Clustering", tab_id="tab-2"),
 
                 dbc.Tab(dbc.Card(
                     dbc.CardBody(
                         [
                             dcc.Markdown(["This graph shows the <span style='color:#0d6efd;' children=\"estimated predictability\" /> of the person's locations over time. Analysing this graph is helpful to determine if 1) the person's location behavior is stable and 2) if the person is likely to be predictable."], dangerously_allow_html=True),
+                            
+                            dbc.Row([
+                                dbc.Col(
+                                    dcc.Dropdown(
+                                    id='dd-features',
+                                    options=[{'label': name, 'value': feature} for feature, name in features_list.items()],
+                                    value=['window_block', 'hour'],  # Default no features selected
+                                    multi=True), 
+                                    width = 5
+                                ),
+                                dbc.Col(
+                                    dbc.Button('Make Graph', id='btn-predictability-graph', color="primary", className="me-1", n_clicks=0), 
+                                    width=2
+                                )
+                            ]),
+                            html.Br(),                        
                             dcc.Graph(id="predictability_graph"),
                         ]
                     ), className="border-0"
-                ), label="Predictability", tab_id="tab-3"),    
+                ), label="Predictability Graph", tab_id="tab-3"),    
 
                 dbc.Tab(dbc.Card(
                     dbc.CardBody(
@@ -281,22 +307,23 @@ def run_eda(_, source, offset):
         Input('data-store', 'data'),
         State('min_samples', 'value'),
         State('eps', 'value'),
-        State('min_unique_days', 'value')
+        State('min_unique_days', 'value'),
+        State('dd-scale', 'value')
     ],
     prevent_initial_call=True  
 )
-def run_pipeline(_, df, min_samples, eps, min_unique_days):
+def run_pipeline(_, df, min_samples, eps, min_unique_days, scale):
     # Do not execute this function if data-store has changed, but only when btn-clustering has been clicked.
     if not dash.callback_context.triggered[0]['prop_id'] == 'btn-clustering.n_clicks':
         raise PreventUpdate
     
-    add_log_message(f"Starting the clustering")
+    add_log_message(f"Starting the clustering with scale: {scale}")
 
     df = pd.DataFrame(df)
     df['timestamp'] = pd.to_datetime(df['timestamp'], format="mixed")
 
     # Step 2. Run clustering. Returns df and a fig with a scattermapbox. 
-    df, fig = run_clustering(df, int(min_samples), float(eps), int(min_unique_days), outputs_folder_name, add_log_message)
+    df, fig = run_clustering(df, int(min_samples), float(eps), int(min_unique_days), outputs_folder_name, add_log_message, scale)
 
     # Step 3. Transform data
     add_log_message(f"Transforming and resampling the dataset")
@@ -312,20 +339,24 @@ def run_pipeline(_, df, min_samples, eps, min_unique_days):
 @app.callback(
     Output('predictability_graph', 'figure'),
     [
-        Input('scatter_mapbox_graph', 'figure'), 
+        Input('btn-predictability-graph', 'n_clicks'), 
         Input('data-store2', 'data'), 
+        State('dd-features', 'value'),
     ],
     prevent_initial_call=True
 )
-def show_predictability(_, data):
+def show_predictability(_, data, features):
+    if not dash.callback_context.triggered[0]['prop_id'] in ['btn-predictability-graph.n_clicks']:
+        raise PreventUpdate
+
     add_log_message("Making predictability graph...")
 
     df = pd.DataFrame(data)
     df['timestamp'] = pd.to_datetime(df['timestamp'], format="mixed")
 
-    df = DT.add_temporal_features(df)
+    df = DT.add_temporal_features(df, features)
 
-    fig = DataPredicatability(df, predictability_graph_rolling_window_size).run()
+    fig = DataPredictability(df, features, predictability_graph_rolling_window_size).run()
     add_log_message("Done with predictability graph")
     return fig
 
@@ -342,12 +373,15 @@ def show_predictability(_, data):
         Output('heatmap-picker-range-prediction', 'max_date_allowed')
     ],
     [
-        Input('predictability_graph', 'figure'), 
+        Input('scatter_mapbox_graph', 'figure'), 
         Input('data-store2', 'data'), 
     ],
     prevent_initial_call=True
 )
 def show_location_history_heatmap(_, data):
+    if not dash.callback_context.triggered[0]['prop_id'] in ['scatter_mapbox_graph.figure']:
+        raise PreventUpdate
+    
     add_log_message("Making location history heatmap...")
 
     df = pd.DataFrame(data)
@@ -484,6 +518,21 @@ def show_probabilities(clickData, df_probabilities):
 
     return fig, True
 
+
+@callback(
+    [
+        Output('min_samples', 'value'),
+        Output('eps', 'value'),
+    ],
+    Input('dd-scale', 'value')
+)
+def update_output(scale):
+    if scale == "street":
+        return 200, 0.02
+    elif scale == "city":
+        return 1000, 5
+    elif scale == "country":
+        return 1000, 100
 
 @app.callback(
     Output("log-display", "children"),

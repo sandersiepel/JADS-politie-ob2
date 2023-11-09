@@ -100,12 +100,19 @@ def resample_df(df: pd.DataFrame, outputs_folder_name:str) -> pd.DataFrame:
 
     return df
 
-def add_temporal_features(df: pd.DataFrame):
+def add_temporal_features(df: pd.DataFrame, features:list):
     # Input: df with a 'timestamp' column and a location column. 
     
-    df["day"] = df["timestamp"].dt.day
-    df["weekday"] = df["timestamp"].dt.dayofweek
-    df["hour"] = df["timestamp"].dt.hour
-    df["window_block"] = ((df['timestamp'].dt.minute * 60 + df['timestamp'].dt.second) // 600).astype(int)
+    feature_mappings = {
+        "day": lambda x: x.dt.day,
+        "weekday": lambda x: x.dt.dayofweek,
+        "hour": lambda x: x.dt.hour,
+        "window_block": lambda x: ((x.dt.minute * 60 + x.dt.second) // 600).astype(int),
+    }
 
+    # Apply each feature transformation based on the input feature list.
+    for feature in features:
+        if feature in feature_mappings:
+            df[feature] = feature_mappings[feature](df["timestamp"])
+    
     return df
