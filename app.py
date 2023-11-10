@@ -67,6 +67,19 @@ maindiv = html.Div([
         style={"width":"100%"}
     ),
 
+    dbc.Modal(
+        [
+            dbc.ModalHeader(dbc.ModalTitle("Explanation: Probability Graph"), close_button=True),
+            dbc.ModalBody( 
+                dcc.Markdown(["This graph shows the <span style='color:#0d6efd;' children=\"estimated predictability\" /> of the person's locations over time. Analysing this graph is helpful to determine if 1) the person's location behavior is stable and 2) if the person is likely to be predictable."], dangerously_allow_html=True)
+            )
+        ],
+        id="modal-predictability-graph",
+        centered=True,
+        is_open=False,
+        style={"width":"100%"}
+    ),
+
 
     # First row is about 
     dbc.Row([
@@ -95,7 +108,7 @@ maindiv = html.Div([
                                     dbc.Input(id='i-hours-offset', type='text', value=0),
                                     html.Br(),
 
-                                    dbc.Button('Load Data', id='btn-load-data', n_clicks=0, color="primary", className="me-1", style={"width":"100%"}),
+                                    dbc.Button('Load Data', outline=True, id='btn-load-data', n_clicks=0, color="primary", className="me-1", style={"width":"100%"}),
                                 ], width=2),
                                 dbc.Col([
                                     dcc.Markdown(["This graph shows the <span style='color:#0d6efd;' children=\"number of datapoints per day\" /> in the dataset."], dangerously_allow_html=True),
@@ -135,7 +148,7 @@ maindiv = html.Div([
                                     dbc.Label("Min unique days:"),
                                     dbc.Input(id='min_unique_days', type='text', value=1),
                                     html.Br(),
-                                    dbc.Button('Run Clustering', id='btn-clustering', n_clicks=0, color="primary", className="me-1", style={"width":"100%"}),
+                                    dbc.Button('Run Clustering', outline=True, id='btn-clustering', n_clicks=0, color="primary", className="me-1", style={"width":"100%"}),
                                     # TODO: add date range (by default entire dataset) to select clustering data
                                 ], width=2),
                                 dbc.Col([
@@ -149,20 +162,22 @@ maindiv = html.Div([
 
                 dbc.Tab(dbc.Card(
                     dbc.CardBody(
-                        [
-                            dcc.Markdown(["This graph shows the <span style='color:#0d6efd;' children=\"estimated predictability\" /> of the person's locations over time. Analysing this graph is helpful to determine if 1) the person's location behavior is stable and 2) if the person is likely to be predictable."], dangerously_allow_html=True),
-                            
+                        [ 
                             dbc.Row([
                                 dbc.Col(
                                     dcc.Dropdown(
                                     id='dd-features',
                                     options=[{'label': name, 'value': feature} for feature, name in features_list.items()],
-                                    value=['window_block', 'hour'],  # Default no features selected
+                                    value=['window_block', 'hour'], 
                                     multi=True), 
                                     width = 5
                                 ),
                                 dbc.Col(
-                                    dbc.Button('Make Graph', id='btn-predictability-graph', color="primary", className="me-1", n_clicks=0), 
+                                    dbc.Button('Load Graph', outline=True, id='btn-predictability-graph', color="primary", className="me-1", n_clicks=0, style={"width":"100%"}), 
+                                    width=2
+                                ),
+                                dbc.Col(
+                                    dbc.Button('Show Explanation', outline=True, id='btn-predictability-graph-explanation', color="info", className="me-1", n_clicks=0, style={"width":"100%"}), 
                                     width=2
                                 )
                             ]),
@@ -222,7 +237,7 @@ maindiv = html.Div([
             dbc.Label("Horizon length in days:"),
             dbc.Input(id='horizon-length', type='text', value=7),
             html.Br(), 
-            dbc.Button('Train and predict', id='train-predict-button', n_clicks=0, color="primary", className="me-1", style={"width":"100%"}),
+            dbc.Button('Train and predict', outline=True, id='train-predict-button', n_clicks=0, color="primary", className="me-1", style={"width":"100%"}),
 
         ], width=2, style={}), 
         dbc.Col([
@@ -553,6 +568,25 @@ def add_log_message(message):
 )
 def close_modal(_):
     return False
+
+
+@app.callback(
+        Output('modal-predictability-graph', 'is_open'),
+        Input('btn-predictability-graph-explanation', 'n_clicks'),
+        prevent_initial_call = True
+)
+def show_predictability_graph_explanation(n_clicks):
+    return True
+
+@callback(
+    Output('modal-predictability-graph', 'is_open', allow_duplicate=True),
+    Input('closeButton', 'n_clicks'),
+    prevent_initial_call=True
+)
+def close_modal(_):
+    return False
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
