@@ -55,7 +55,7 @@ def train_and_predict(add_log_message, X_train, y_train, horizon_length, label_e
 
     # Create a DataFrame with the 'time' column and the 'location' column that holds the predicted locations (strings).
     df_predictions = pd.DataFrame({"timestamp": pd.date_range(start=X_test_start, end=X_test_end, freq="10T")})
-    df_predictions = DT.add_temporal_features(df_predictions)
+    df_predictions = DT.add_temporal_features(df_predictions, ["weekday", "hour", "window_block"])
 
     # Make predictions and inverse transform them
     df_predictions['location'] = model.predict(df_predictions[["weekday", "hour", "window_block"]])

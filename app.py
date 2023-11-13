@@ -20,7 +20,7 @@ import plotly.graph_objs as go
 # Initialize parameters.
 # begin_date and end_date are used to filter the data for your analysis.
 begin_date = "2023-01-01"
-end_date = "2023-10-02"  # End date is INclusive! 
+end_date = "2023-12-31"  # End date is INclusive! 
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
 fraction = 1
 # For the model performance class we need to specify the number of training days (range) and testing horizon (also in days)
@@ -29,7 +29,7 @@ predictability_graph_rolling_window_size = 5 # See docstring of Visualizations.D
 features_list = {"day": "Day of the Month", "weekday": "Day of the Week", "hour": "Hour of the Day", "window_block": "Block of the Hour"}
 
 log_messages = deque(maxlen=5)  
-app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP, dbc.icons.BOOTSTRAP])
 
 SIDEBAR_STYLE = {
     "backgroundColor": "#f8f9fa",
@@ -162,27 +162,25 @@ maindiv = html.Div([
 
                 dbc.Tab(dbc.Card(
                     dbc.CardBody(
-                        [ 
-                            dbc.Row([
-                                dbc.Col(
+                        children = [ 
+                            dbc.Row(children=[
+                                dbc.Col([
                                     dcc.Dropdown(
-                                    id='dd-features',
-                                    options=[{'label': name, 'value': feature} for feature, name in features_list.items()],
-                                    value=['window_block', 'hour'], 
-                                    multi=True), 
-                                    width = 5
-                                ),
-                                dbc.Col(
-                                    dbc.Button('Load Graph', outline=True, id='btn-predictability-graph', color="primary", className="me-1", n_clicks=0, style={"width":"100%"}), 
-                                    width=2
-                                ),
-                                dbc.Col(
-                                    dbc.Button('Show Explanation', outline=True, id='btn-predictability-graph-explanation', color="info", className="me-1", n_clicks=0, style={"width":"100%"}), 
-                                    width=2
-                                )
+                                        id='dd-features',
+                                        options=[{'label': name, 'value': feature} for feature, name in features_list.items()],
+                                        value=['window_block', 'hour'], 
+                                        multi=True
+                                    ), 
+                                ], width=10),
+                                dbc.Col([
+                                    dbc.Button('Load Graph', outline=True, id='btn-predictability-graph', color="primary", className="me-1", n_clicks=0, style={"width":"100%", "marginBottom":"10px"}), 
+                                ], width=2)
                             ]),
-                            html.Br(),                        
+
+                            dbc.Button(children=[html.I(className="bi bi-info-circle-fill me-2"), 'Explanation'], id='btn-predictability-graph-explanation', color="info", className="me-1", n_clicks=0, style={"backgroundColor":"white", "border":"none", "padding":"0px", "marginBottom":"15px"}),
+
                             dcc.Graph(id="predictability_graph"),
+                            
                         ]
                     ), className="border-0"
                 ), label="Predictability Graph", tab_id="tab-3"),    
@@ -479,7 +477,7 @@ def train_model(_, start_date, end_date, data, horizon_length):
     df = df[df.location != "Unknown"]
     
     # Add temporal features and encode the location labels to integers
-    df = DT.add_temporal_features(df)
+    df = DT.add_temporal_features(df, ["window_block", "hour", "weekday"])
     label_encoder = le()
     df.location = label_encoder.fit_transform(df.location)
 
