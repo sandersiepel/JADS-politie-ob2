@@ -7,7 +7,6 @@ from Visualisations import DataPredictability, HeatmapVisualizerV2
 from collections import deque
 import dash_bootstrap_components as dbc
 from datetime import datetime
-import plotly.express as px
 import dash
 from datetime import date
 from sklearn.preprocessing import LabelEncoder as le 

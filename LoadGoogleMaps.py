@@ -17,7 +17,7 @@ class GMData:
                 data = json.load(json_file)
         except FileNotFoundError:
             print(
-                "Error loading data file: make sure that you have a 'data' folder in the same directory as this script"
+                "Error loading data file: make sure that you have a 'data' folder in the same directory as this script and that the data folder contains a Records.json file"
             )
             sys.exit(1)
 
