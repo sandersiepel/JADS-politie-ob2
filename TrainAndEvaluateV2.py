@@ -10,7 +10,6 @@ from collections import defaultdict
 import pickle
 from tqdm import tqdm
 import math
-import numpy as np
 from Visualisations import ModelPerformanceVisualizer
 import os
 

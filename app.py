@@ -2,9 +2,8 @@ from dash import Dash, dcc, html, Input, Output, State, callback
 from dash.exceptions import PreventUpdate
 import DataLoader as DL
 import DataTransformer as DT
-from TrainAndEvaluateV2 import TrainAndEvaluate
 import pandas as pd
-from Visualisations import ModelPerformanceVisualizer, EDA, DataPredictability, HeatmapVisualizer, HeatmapVisualizerV2
+from Visualisations import DataPredictability, HeatmapVisualizerV2
 from collections import deque
 import dash_bootstrap_components as dbc
 from datetime import datetime
@@ -12,7 +11,7 @@ import plotly.express as px
 import dash
 from datetime import date
 from sklearn.preprocessing import LabelEncoder as le 
-from datetime import datetime, timedelta
+from datetime import datetime
 from app_functions import *
 import plotly.graph_objs as go
 

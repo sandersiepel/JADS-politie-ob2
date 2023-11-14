@@ -1,6 +1,5 @@
 from LoadGoogleMaps import GMData
 from LoadRoutinedData import RDData
-from datetime import datetime
 import pandas as pd
 from Visualisations import EDA
 import os
