@@ -122,6 +122,19 @@ maindiv = html.Div([
                         [
                             dbc.Row([
                                 dbc.Col([
+                                    dbc.Label("Select data:"),
+                                    dcc.DatePickerRange(
+                                        id='date-range-clustering',
+                                        min_date_allowed=date(2000, 1, 1),
+                                        max_date_allowed=date(2023, 12, 31),
+                                        initial_visible_month=date(2023, 7, 1),
+                                        with_portal=True,
+                                        clearable=True,
+                                        number_of_months_shown=3,
+                                        start_date_placeholder_text='Start day',
+                                        end_date_placeholder_text='End day',
+                                    ),
+                                    html.Br(), html.Br(),
                                     dbc.Label("Scale:"),
                                     dcc.Dropdown(
                                         options=[
@@ -280,7 +293,12 @@ def update_year_prediction(selected_year):
 @app.callback(
     [
         Output('counts_per_day', 'figure'),
-        Output('data-store', 'data')
+        Output('data-store', 'data'),
+        # Output('date-range-clustering', 'start_date'),
+        # Output('date-range-clustering', 'end_date'),
+        Output('date-range-clustering', 'initial_visible_month'),
+        Output('date-range-clustering', 'min_date_allowed'),
+        Output('date-range-clustering', 'max_date_allowed'),
     ],
     [
         Input('btn-load-data', 'n_clicks'),
@@ -305,7 +323,10 @@ def run_eda(_, source, offset):
 
     add_log_message(f"Loaded the data with size: {len(df)}")
 
-    return fig, df.to_dict('records')
+    max_date_allowed = (df.timestamp.max()).date()
+    min_date_allowed = (df.timestamp.min()).date()
+
+    return fig, df.to_dict('records'), min_date_allowed, min_date_allowed, max_date_allowed
     
 
 @app.callback(
@@ -319,11 +340,13 @@ def run_eda(_, source, offset):
         State('min_samples', 'value'),
         State('eps', 'value'),
         State('min_unique_days', 'value'),
-        State('dd-scale', 'value')
+        State('dd-scale', 'value'),
+        State('date-range-clustering', 'start_date'),
+        State('date-range-clustering', 'end_date')
     ],
     prevent_initial_call=True  
 )
-def run_pipeline(_, df, min_samples, eps, min_unique_days, scale):
+def run_pipeline(_, df, min_samples, eps, min_unique_days, scale, start_date, end_date):
     # Do not execute this function if data-store has changed, but only when btn-clustering has been clicked.
     if not dash.callback_context.triggered[0]['prop_id'] == 'btn-clustering.n_clicks':
         raise PreventUpdate
@@ -333,6 +356,11 @@ def run_pipeline(_, df, min_samples, eps, min_unique_days, scale):
     df = pd.DataFrame(df)
     df['timestamp'] = pd.to_datetime(df['timestamp'], format="mixed")
 
+    # Step 1. Filter the dataset based on start and end time from date-range-clustering
+    start = pd.to_datetime(f"{start_date} 00:00:00")
+    end = pd.to_datetime(f"{end_date} 23:50:00")
+    df = df.loc[df["timestamp"].between(start, end)]
+
     # Step 2. Run clustering. Returns df and a fig with a scattermapbox. 
     df, fig = run_clustering(df, int(min_samples), float(eps), int(min_unique_days), outputs_folder_name, add_log_message, scale)
 
@@ -341,6 +369,7 @@ def run_pipeline(_, df, min_samples, eps, min_unique_days, scale):
     df = DT.transform_start_end_times(df, outputs_folder_name, fill_gaps=True)
 
     # Step 4. Resample dataset. This saves the data at output/outputs_folder_name/resampled_df_10_min.xlsx.
+    # TODO: currently, resample_df adds data points after the last data point to fill the day; avoid this behavior. 
     df = DT.resample_df(df, outputs_folder_name)
     add_log_message(f"Done, saving datasets at output/{outputs_folder_name}")
 

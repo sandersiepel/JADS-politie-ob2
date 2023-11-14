@@ -1,4 +1,4 @@
-name: politieoostbrabant
+name: projectsander
 channels:
   - conda-forge
   - defaults
