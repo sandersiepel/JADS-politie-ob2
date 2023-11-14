@@ -22,7 +22,7 @@ end_date = "2023-12-31"  # End date is INclusive!
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
 fraction = 1
 # For the model performance class we need to specify the number of training days (range) and testing horizon (also in days)
-outputs_folder_name = f"politiedemo" # All of the outputs will be placed in output/outputs_folder_name
+outputs_folder_name = f"politiedemo2" # All of the outputs will be placed in output/outputs_folder_name
 predictability_graph_rolling_window_size = 5 # See docstring of Visualizations.DataPredictability for more info on this parameter.
 features_list = {"day": "Day of the Month", "weekday": "Day of the Week", "hour": "Hour of the Day", "window_block": "Block of the Hour"}
 
