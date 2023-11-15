@@ -596,7 +596,6 @@ class DataPredictability():
                 name="Predictability"
             ))
 
-
         layout = go.Layout(showlegend=True, xaxis_title="Time", yaxis_title="Predictability", margin=dict(l=0, r=0, t=0, b=0))
         fig = go.Figure(data=data, layout=layout)
 
