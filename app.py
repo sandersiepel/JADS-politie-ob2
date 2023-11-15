@@ -59,7 +59,7 @@ maindiv = html.Div([
                 )
             ),
         ],
-        id="modalExample",
+        id="modal-explanation-probabilities",
         centered=True,
         is_open=False,
         style={"width":"100%"}
@@ -77,6 +77,60 @@ maindiv = html.Div([
         is_open=False,
         style={"width":"100%"}
     ),
+
+    dbc.Modal(
+        [
+            dbc.ModalHeader(dbc.ModalTitle("Explanation: Load Dataset"), close_button=True),
+            dbc.ModalBody( 
+                dcc.Markdown(["This tab allows you to <span style='color:#0d6efd;' children=\"load your dataset\" />. Make sure that your dataset is placed in the 'data' folder. After selecting your dataset, click on 'load data'. The graph on the right will show you how many data points per day the dataset contains."], dangerously_allow_html=True)
+            )
+        ],
+        id="modal-load-data",
+        centered=True,
+        is_open=False,
+        style={"width":"100%"}
+    ),
+
+    dbc.Modal(
+        [
+            dbc.ModalHeader(dbc.ModalTitle("Explanation: Clustering"), close_button=True),
+            dbc.ModalBody( 
+                dcc.Markdown(["This tab allows you to perform the <span style='color:#0d6efd;' children=\"clustering\" />. First, you select the data that you want to use for clustering and subsequent analyses. Then you select the scale for clustering: street, city or country. This will automatically change the min samples and eps parameters. Alternatively, you can manually adjust these parameters. <br><br><b>Eps:</b> The maximum distance two points can be from one another while still belonging to the same cluster. <br><b>Min samples: </b>The fewest number of points required to form a cluster. <br><b>Min unique days: </b> The minimum number of days a clusters was visited to be included in the results <br><br>For eps, a value of 1 represents one kilometer, 0.01 represents 10 meters. Increasing the min samples parameter results in 'more important' clusters. The same goes for increasing the min unique days value. "], dangerously_allow_html=True)
+            )
+        ],
+        id="modal-clustering",
+        centered=True,
+        is_open=False,
+        style={"width":"100%"}
+    ),
+
+    dbc.Modal(
+        [
+            dbc.ModalHeader(dbc.ModalTitle("Explanation: Location History"), close_button=True),
+            dbc.ModalBody( 
+                dcc.Markdown(["This visualization shows the subject's location history, based on the identified significant locations."], dangerously_allow_html=True)
+            )
+        ],
+        id="modal-location-history",
+        centered=True,
+        is_open=False,
+        style={"width":"100%"}
+    ),
+
+    dbc.Modal(
+        [
+            dbc.ModalHeader(dbc.ModalTitle("Explanation: Predicting"), close_button=True),
+            dbc.ModalBody( 
+                dcc.Markdown(["Predicting bla bla."], dangerously_allow_html=True)
+            )
+        ],
+        id="modal-predicting",
+        centered=True,
+        is_open=False,
+        style={"width":"100%"}
+    ),
+
+
 
 
     # First row is about 
@@ -107,9 +161,9 @@ maindiv = html.Div([
                                     html.Br(),
 
                                     dbc.Button('Load Data', outline=True, id='btn-load-data', n_clicks=0, color="primary", className="me-1", style={"width":"100%"}),
+                                    dbc.Button(children=[html.I(className="bi bi-info-circle-fill me-2"), 'Explanation'], id='btn-load-data-explanation', color="info", className="me-1", n_clicks=0, style={"backgroundColor":"white", "border":"none", "padding":"0px", "marginTop":"15px"}),
                                 ], width=2),
                                 dbc.Col([
-                                    dcc.Markdown(["This graph shows the <span style='color:#0d6efd;' children=\"number of datapoints per day\" /> in the dataset."], dangerously_allow_html=True),
                                     dcc.Graph(id="counts_per_day"),
                                 ], width=10)
                             ]),
@@ -135,12 +189,11 @@ maindiv = html.Div([
                                         end_date_placeholder_text='End day',
                                     ),
                                     html.Br(), html.Br(),
-                                    dbc.Label("Scale:"),
                                     dcc.Dropdown(
                                         options=[
-                                            {'label': 'Street', 'value': 'street'},
-                                            {'label': 'City', 'value': 'city'},
-                                            {'label': 'Country', 'value': 'country'},
+                                            {'label': 'Scale: street', 'value': 'street'},
+                                            {'label': 'Scale: City', 'value': 'city'},
+                                            {'label': 'Scale: Country', 'value': 'country'},
                                         ], # TODO: make these options dynamic, based on the available datasets in the /data folder.
                                         value='street', id='dd-scale'
                                     ),
@@ -160,10 +213,9 @@ maindiv = html.Div([
                                     dbc.Input(id='min_unique_days', type='text', value=1),
                                     html.Br(),
                                     dbc.Button('Run Clustering', outline=True, id='btn-clustering', n_clicks=0, color="primary", className="me-1", style={"width":"100%"}),
-                                    # TODO: add date range (by default entire dataset) to select clustering data
+                                    dbc.Button(children=[html.I(className="bi bi-info-circle-fill me-2"), 'Explanation'], id='btn-clustering-explanation', color="info", className="me-1", n_clicks=0, style={"backgroundColor":"white", "border":"none", "padding":"0px", "marginTop":"15px"}),
                                 ], width=2),
                                 dbc.Col([
-                                    dcc.Markdown(["This graph shows the <span style='color:#0d6efd;' children=\"identified clusters and their centroids\" /> that were found by the DBSCAN algorithm."], dangerously_allow_html=True),
                                     dcc.Graph(id="scatter_mapbox_graph"),
                                 ], width=10)
                             ]),
@@ -200,7 +252,6 @@ maindiv = html.Div([
                     dbc.CardBody(
                         [
                             # dcc.Graph(id="location_history_heatmap"),
-                            dcc.Markdown(["This graph shows the <span style='color:#0d6efd;' children=\"visited locations\" /> of the person between two dates. Use the date range below to change the dates."], dangerously_allow_html=True),
                             dcc.DatePickerRange(
                                 id='heatmap-picker-range',
                                 min_date_allowed=date(2000, 1, 1),
@@ -211,6 +262,8 @@ maindiv = html.Div([
                                 with_portal=True,
                                 number_of_months_shown=3,
                             ),
+                            html.Br(),
+                            dbc.Button(children=[html.I(className="bi bi-info-circle-fill me-2"), 'Explanation'], id='btn-location-history-explanation', color="info", className="me-1", n_clicks=0, style={"backgroundColor":"white", "border":"none", "padding":"0px", "marginTop":"15px"}),
                             html.Br(), html.Br(),
                             dcc.Graph(id="location_history_heatmap"),
                         ]
@@ -223,9 +276,7 @@ maindiv = html.Div([
     ], style={"minHeight": "50px", "paddingBottom": "20px"}),
 
     dbc.Row([
-        html.H2("Predicting"),
-        html.P("After running the clustering, you can make predictions. Select the training period for the model, select the horizon, and click on 'make predictions'. "),
-        
+        html.H2("Predicting"),        
         dbc.Col([
             # Add an input field for year selection
             dbc.Label("Select starting year"),
@@ -247,6 +298,8 @@ maindiv = html.Div([
             dbc.Input(id='horizon-length', type='text', value=7),
             html.Br(), 
             dbc.Button('Train and predict', outline=True, id='train-predict-button', n_clicks=0, color="primary", className="me-1", style={"width":"100%"}),
+            dbc.Button(children=[html.I(className="bi bi-info-circle-fill me-2"), 'Explanation'], id='btn-predicting-explanation', color="info", className="me-1", n_clicks=0, style={"backgroundColor":"white", "border":"none", "padding":"0px", "marginTop":"15px"}),
+
 
         ], width=2, style={}), 
         dbc.Col([
@@ -526,7 +579,7 @@ def train_model(_, start_date, end_date, data, horizon_length):
 @app.callback(
     [
         Output('probabilities-table', 'figure'),
-        Output('modalExample', 'is_open'),
+        Output('modal-explanation-probabilities', 'is_open'),
     ],
     [
         Input('prediction_heatmap', 'clickData'), 
@@ -587,21 +640,28 @@ def add_log_message(message):
     log_messages.append(get_time() + message)
 
 @callback(
-    Output('modalExample', 'is_open', allow_duplicate=True),
+    Output('modal-explanation-probabilities', 'is_open', allow_duplicate=True),
     Input('closeButton', 'n_clicks'),
     prevent_initial_call=True
 )
 def close_modal(_):
     return False
 
-
-@app.callback(
-        Output('modal-predictability-graph', 'is_open'),
-        Input('btn-predictability-graph-explanation', 'n_clicks'),
-        prevent_initial_call = True
+@callback(
+    Output('modal-load-data', 'is_open', allow_duplicate=True),
+    Input('closeButton', 'n_clicks'),
+    prevent_initial_call=True
 )
-def show_predictability_graph_explanation(n_clicks):
-    return True
+def close_modal(_):
+    return False
+
+@callback(
+    Output('modal-clustering', 'is_open', allow_duplicate=True),
+    Input('closeButton', 'n_clicks'),
+    prevent_initial_call=True
+)
+def close_modal(_):
+    return False
 
 @callback(
     Output('modal-predictability-graph', 'is_open', allow_duplicate=True),
@@ -611,6 +671,61 @@ def show_predictability_graph_explanation(n_clicks):
 def close_modal(_):
     return False
 
+@callback(
+    Output('modal-location-history', 'is_open', allow_duplicate=True),
+    Input('closeButton', 'n_clicks'),
+    prevent_initial_call=True
+)
+def close_modal(_):
+    return False
+
+@callback(
+    Output('modal-predicting', 'is_open', allow_duplicate=True),
+    Input('closeButton', 'n_clicks'),
+    prevent_initial_call=True
+)
+def close_modal(_):
+    return False
+
+@app.callback(
+        Output('modal-predictability-graph', 'is_open', allow_duplicate=True),
+        Input('btn-predictability-graph-explanation', 'n_clicks'),
+        prevent_initial_call = True
+)
+def show_predictability_graph_explanation(n_clicks):
+    return True
+
+@app.callback(
+        Output('modal-load-data', 'is_open'),
+        Input('btn-load-data-explanation', 'n_clicks'),
+        prevent_initial_call = True
+)
+def show_predictability_graph_explanation(n_clicks):
+    return True
+
+@app.callback(
+        Output('modal-clustering', 'is_open'),
+        Input('btn-clustering-explanation', 'n_clicks'),
+        prevent_initial_call = True
+)
+def show_predictability_graph_explanation(n_clicks):
+    return True
+
+@app.callback(
+        Output('modal-location-history', 'is_open'),
+        Input('btn-location-history-explanation', 'n_clicks'),
+        prevent_initial_call = True
+)
+def show_predictability_graph_explanation(n_clicks):
+    return True
+
+@app.callback(
+        Output('modal-predicting', 'is_open'),
+        Input('btn-predicting-explanation', 'n_clicks'),
+        prevent_initial_call = True
+)
+def show_predictability_graph_explanation(n_clicks):
+    return True
 
 
 if __name__ == '__main__':
