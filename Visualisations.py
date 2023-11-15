@@ -12,6 +12,7 @@ import plotly.express as px
 import base64
 from sklearn.preprocessing import LabelEncoder
 import plotly.graph_objects as go
+import math
 
 
 class HeatmapVisualizer:
@@ -574,26 +575,32 @@ class DataPredictability():
 
         x,y = zip(*sorted(data.items()))
         df_plot = pd.DataFrame({"Time":x, "Score":y})
+        data = []
 
-        fig = go.Figure()
+        # Calculate window size parameter based on the number of days that we have. If < 30 days, use 10, else 20. 
+        window_size = math.ceil(len(y)/3) if len(y) < 60 else 20
+        poly_order = 1 if(window_size) < 4 else 3
 
         if savgol_filter:
-            fig.add_trace(go.Scatter(
+            data.append(go.Scatter(
                 x=df_plot.Time.values.tolist(),
                 y=signal.savgol_filter(df_plot['Score'].values.tolist(),
-                                    20, # window size used for filtering
-                                    3), # order of fitted polynomial
-                name='Savitzky-Golay'
+                                    window_size, # window size used for filtering
+                                    poly_order), # order of fitted polynomial
+                name='Predictability'
             ))
         else:
-            fig.add_trace(go.Scatter(
+            data.append(go.Scatter(
                 x=df_plot.Time.values.tolist(),
-                y=y
+                y=y,
+                name="Predictability"
             ))
 
-        average_score = df_plot['Score'].mean()
-        fig.add_hline(y=average_score, line=dict(color='red', width=2, dash='dash'), name="Average Score")
 
-        fig.update_layout(xaxis_title="Time", yaxis_title="Predictability", margin=dict(l=0, r=0, t=0, b=0))
+        layout = go.Layout(showlegend=True, xaxis_title="Time", yaxis_title="Predictability", margin=dict(l=0, r=0, t=0, b=0))
+        fig = go.Figure(data=data, layout=layout)
+
+        average_score = df_plot['Score'].mean()
+        fig.add_hline(y=average_score, line=dict(color='red', width=2, dash='dash'), name="Average Predictability")
 
         return fig
