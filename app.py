@@ -160,7 +160,7 @@ maindiv = html.Div([
                                     dbc.Input(id='i-hours-offset', type='text', value=0),
                                     html.Br(),
 
-                                    dbc.Button('Load Data', outline=True, id='btn-load-data', n_clicks=0, color="primary", className="me-1", style={"width":"100%"}),
+                                    dbc.Button(children=['Load Data'], outline=True, id='btn-load-data', n_clicks=0, color="primary", className="me-1", style={"width":"100%"}),
                                     dbc.Button(children=[html.I(className="bi bi-info-circle-fill me-2"), 'Explanation'], id='btn-load-data-explanation', color="info", className="me-1", n_clicks=0, style={"backgroundColor":"white", "border":"none", "padding":"0px", "marginTop":"15px"}),
                                 ], width=2),
                                 dbc.Col([
@@ -297,7 +297,7 @@ maindiv = html.Div([
             dbc.Label("Horizon length in days:"),
             dbc.Input(id='horizon-length', type='text', value=7),
             html.Br(), 
-            dbc.Button('Train and predict', outline=True, id='train-predict-button', n_clicks=0, color="primary", className="me-1", style={"width":"100%"}),
+            dbc.Button('Train and Predict', outline=True, id='train-predict-button', n_clicks=0, color="primary", className="me-1", style={"width":"100%"}),
             dbc.Button(children=[html.I(className="bi bi-info-circle-fill me-2"), 'Explanation'], id='btn-predicting-explanation', color="info", className="me-1", n_clicks=0, style={"backgroundColor":"white", "border":"none", "padding":"0px", "marginTop":"15px"}),
 
 
@@ -343,15 +343,57 @@ def update_year_prediction(selected_year):
     return date(selected_year, 1, 1)
 
 
+# Disable button load data and show loading
+@app.callback(
+        [
+            Output('btn-load-data', 'children', allow_duplicate=True), 
+            Output('btn-load-data', 'disabled', allow_duplicate=True),
+        ],
+        Input('btn-load-data', 'n_clicks'), prevent_initial_call=True
+)
+def button_loading_state(n_clicks):
+    return [dbc.Spinner(size="sm"), " Loading..."], True
+
+@app.callback(
+        [
+            Output('btn-clustering', 'children', allow_duplicate=True), 
+            Output('btn-clustering', 'disabled', allow_duplicate=True),
+        ],
+        Input('btn-clustering', 'n_clicks'), prevent_initial_call=True
+)
+def button_loading_state(n_clicks):
+    return [dbc.Spinner(size="sm"), " Clustering..."], True
+
+@app.callback(
+        [
+            Output('btn-predictability-graph', 'children', allow_duplicate=True), 
+            Output('btn-predictability-graph', 'disabled', allow_duplicate=True),
+        ],
+        Input('btn-predictability-graph', 'n_clicks'), prevent_initial_call=True
+)
+def button_loading_state(n_clicks):
+    return [dbc.Spinner(size="sm"), " Loading..."], True
+
+@app.callback(
+        [
+            Output('train-predict-button', 'children', allow_duplicate=True), 
+            Output('train-predict-button', 'disabled', allow_duplicate=True),
+        ],
+        Input('train-predict-button', 'n_clicks'), prevent_initial_call=True
+)
+def button_loading_state(n_clicks):
+    return [dbc.Spinner(size="sm"), " Loading..."], True
+
+
 @app.callback(
     [
         Output('counts_per_day', 'figure'),
         Output('data-store', 'data'),
-        # Output('date-range-clustering', 'start_date'),
-        # Output('date-range-clustering', 'end_date'),
         Output('date-range-clustering', 'initial_visible_month'),
         Output('date-range-clustering', 'min_date_allowed'),
         Output('date-range-clustering', 'max_date_allowed'),
+        Output('btn-load-data', 'children'), 
+        Output('btn-load-data', 'disabled'),
     ],
     [
         Input('btn-load-data', 'n_clicks'),
@@ -379,13 +421,15 @@ def run_eda(_, source, offset):
     max_date_allowed = (df.timestamp.max()).date()
     min_date_allowed = (df.timestamp.min()).date()
 
-    return fig, df.to_dict('records'), min_date_allowed, min_date_allowed, max_date_allowed
+    return fig, df.to_dict('records'), min_date_allowed, min_date_allowed, max_date_allowed, "Load Data", False
     
 
 @app.callback(
     [
         Output('scatter_mapbox_graph', 'figure'),
-        Output('data-store2', 'data')
+        Output('data-store2', 'data'),
+        Output('btn-clustering', 'children'),
+        Output('btn-clustering', 'disabled'),
     ],
     [
         Input('btn-clustering', 'n_clicks'),
@@ -426,11 +470,15 @@ def run_pipeline(_, df, min_samples, eps, min_unique_days, scale, start_date, en
     df = DT.resample_df(df, outputs_folder_name)
     add_log_message(f"Done, saving datasets at output/{outputs_folder_name}")
 
-    return fig, df.to_dict('records')
+    return fig, df.to_dict('records'), "Run Clustering", False
 
 
 @app.callback(
-    Output('predictability_graph', 'figure'),
+    [
+        Output('predictability_graph', 'figure'),
+        Output('btn-predictability-graph', 'children'),
+        Output('btn-predictability-graph', 'disabled')
+    ],
     [
         Input('btn-predictability-graph', 'n_clicks'), 
         Input('data-store2', 'data'), 
@@ -451,7 +499,8 @@ def show_predictability(_, data, features):
 
     fig = DataPredictability(df, features, predictability_graph_rolling_window_size).run()
     add_log_message("Done with predictability graph")
-    return fig
+
+    return fig, "Load Graph", False
 
 
 @app.callback(
@@ -529,6 +578,8 @@ def update_location_history_heatmap(start_date, end_date, data):
     [
         Output('prediction_heatmap', 'figure'),
         Output('data-store3', 'data'),
+        Output('train-predict-button', 'children'),
+        Output('train-predict-button', 'disabled')
     ],
     [
         Input('train-predict-button', 'n_clicks'),
@@ -573,7 +624,7 @@ def train_model(_, start_date, end_date, data, horizon_length):
         df_predictions.timestamp.min().date().strftime('%Y-%m-%d'), df_predictions.timestamp.max().date().strftime('%Y-%m-%d'), df_predictions[["timestamp", "location"]], outputs_folder_name=outputs_folder_name,
     ).get_fig()
     
-    return fig, df_probabilities.to_dict('records')
+    return fig, df_probabilities.to_dict('records'), "Train and Predict", False
 
 
 @app.callback(
