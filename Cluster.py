@@ -9,21 +9,22 @@ import requests
 import plotly.express as px
 from typing import Tuple
 import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
+
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
 
 class Cluster:
     def __init__(
         self,
         df: pd.DataFrame,
-        outputs_folder_name:str,
+        outputs_folder_name: str,
         verbose: bool = False,
         pre_filter: bool = True,
         post_filter: bool = True,
         filter_moving: bool = True,
         centroid_k: int = 5,
         min_unique_days: int = 2,
-        scale="street"
+        scale="street",
     ) -> None:
         """init
 
@@ -94,7 +95,7 @@ class Cluster:
         self._post_filter_homogeneous_clusters()
 
         # Then we delete clusters with mean/std of distances to centroid <= MEAN_STD_LOWER or >= MEAN_STD_UPPER
-        self._post_filter_mean_std_ratio_distances(mean_std_lower, mean_std_upper)
+        # self._post_filter_mean_std_ratio_distances(mean_std_lower, mean_std_upper)
 
         # Delete those clusters that are visited less times than self.min_unique_days
         self._post_filter_min_unique_days(self.min_unique_days)
@@ -147,7 +148,9 @@ class Cluster:
                 clusters_to_delete, source="post filter min unique days"
             )
 
-    def _post_filter_mean_std_ratio_distances(self, mean_std_lower: float, mean_std_upper: float) -> None:
+    def _post_filter_mean_std_ratio_distances(
+        self, mean_std_lower: float, mean_std_upper: float
+    ) -> None:
         """This function applies a post filter on the mean_std variable of self.df_centroids. It deletes those clusters where the value is either < 0.5 or > 5.
         The rationale behind this is that the spreadness of data points in a "valid cluster" should follow a certain distribution
         i.e., very dense in the center and gradually becoming less dense if points are further away from the center. Many of the clusters that would qualify
@@ -377,7 +380,6 @@ class Cluster:
             lambda row: _calc_mean_over_std(row), axis=1
         )
 
-
     def _add_OSM_to_clusters(self) -> None:
         """
         Enriches the already existing self.df_centroids with OSM data
@@ -394,7 +396,10 @@ class Cluster:
             )
 
         self.df_centroids["location"] = self.df_centroids.apply(
-            lambda row: self._OSM_request(row["latitude"], row["longitude"], self.scale), axis=1,
+            lambda row: self._OSM_request(
+                row["latitude"], row["longitude"], self.scale
+            ),
+            axis=1,
         )
 
     @staticmethod
@@ -421,7 +426,7 @@ class Cluster:
         def extractVariablesFromOSM(json, vars):
             # json: dict containing address data (such as city, road, housenumber)
             # vars: list of the variables of interest
-            
+
             res = ""
             city = False
 
@@ -430,27 +435,42 @@ class Cluster:
                     # we already have a city/town/village so skip the other options.
                     continue
                 try:
-                    res += (json[v] + " ")
+                    res += json[v] + " "
                     if v in ["city", "town", "city_district", "village"]:
                         city = True
                 except KeyError:
                     res += ""
 
-            # TODO: trim res 
+            # TODO: trim res
 
             return res
 
         if not "address" in data[0]:
-            print(f"Message (Clustering OSM): could not retrieve OSM data, returning 'unknown' as cluster label.")
+            print(
+                f"Message (Clustering OSM): could not retrieve OSM data, returning 'unknown' as cluster label."
+            )
             return "unknown"
         else:
-            adr_data = data[0]['address'] # dict containing address data
+            adr_data = data[0]["address"]  # dict containing address data
             # TODO: add scale as an option in the interface
             if scale == "street":
-                # We want housenumber, road, city. Sometimes, housenumber is not available. 
-                return extractVariablesFromOSM(adr_data, ["road", "house_number", "city", "town", "city_district", "village"]) 
+                # We want housenumber, road, city. Sometimes, housenumber is not available.
+                return extractVariablesFromOSM(
+                    adr_data,
+                    [
+                        "road",
+                        "house_number",
+                        "city",
+                        "town",
+                        "city_district",
+                        "village",
+                    ],
+                )
             if scale == "city":
-                return extractVariablesFromOSM(adr_data, ["city", "city_district", "town", "village", "state", "country"])
+                return extractVariablesFromOSM(
+                    adr_data,
+                    ["city", "city_district", "town", "village", "state", "country"],
+                )
             if scale == "country":
                 return extractVariablesFromOSM(adr_data, ["country"])
 
@@ -591,7 +611,10 @@ class Cluster:
             color="location",
             hover_name="id",
             hover_data=hover_data,
-            center=dict(lon=self.df_centroids.loc[0].longitude, lat=self.df_centroids.loc[0].latitude), # TODO: take centroid of biggest cluster.
+            center=dict(
+                lon=self.df_centroids.loc[0].longitude,
+                lat=self.df_centroids.loc[0].latitude,
+            ),  # TODO: take centroid of biggest cluster.
         )
 
         # Delete the last row in df_centroids (which is the placeholder row for the noise datapoints, which was added in add_locations_to_original_dataframe())
@@ -617,7 +640,9 @@ class Cluster:
 
         return self
 
-    def add_locations_to_original_dataframe(self, export_xlsx: bool = True, name: str = "test_output") -> Cluster:
+    def add_locations_to_original_dataframe(
+        self, export_xlsx: bool = True, name: str = "test_output"
+    ) -> Cluster:
         """This function adds the results from clustering (i.e., the discrete location labels) to the original input dataframe (self.df)
         by merging self.df.centroids and self.df. Finally, it saves self.df to an xlsx file in the output folder.
 
@@ -630,8 +655,20 @@ class Cluster:
         """
 
         # Here we add one row manually since we want to keep the "noise" datapoints after the merge. These data points are now merged with the location "Unknown".
-        self.df_centroids.loc[len(self.df_centroids)] = [0, 0, "-1", 10, "black", "Unknown", 0, 0, 0]
-        self.df_centroids.sort_values(by='num_datapoints', inplace=True, ascending=False)
+        self.df_centroids.loc[len(self.df_centroids)] = [
+            0,
+            0,
+            "-1",
+            10,
+            "black",
+            "Unknown",
+            0,
+            0,
+            0,
+        ]
+        self.df_centroids.sort_values(
+            by="num_datapoints", inplace=True, ascending=False
+        )
 
         self.df = pd.merge(
             self.df, self.df_centroids[["cluster", "location"]], on="cluster"
