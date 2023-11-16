@@ -75,7 +75,7 @@ maindiv = html.Div(
                 dbc.ModalBody(
                     dcc.Markdown(
                         [
-                            "This graph shows the <span style='color:#0d6efd;' children=\"estimated predictability\" /> of the person's locations over time. Analysing this graph is helpful to determine if 1) the person's location behavior is stable and 2) if the person is likely to be predictable."
+                            "This graph shows the <span style='color:#0d6efd;' children=\"estimated predictability\" /> of the subject's locations over time. From the predictability graph, two things can be derived. <br><br>First, the higher the values (or magnitude), the better the subject's predictability for that day. Thus, a high value means that for most of the moments on that day, the person's location matched the historical pattern observed in the training dataset. <br><br>Second, the more stable the values, the more stable someone's predictability is. Stability here refers to the consistency or steadiness of the predictability values over time. When the graph line is relatively flat or horizontal, it indicates that the predictability is stable. "
                         ],
                         dangerously_allow_html=True,
                     )
@@ -94,7 +94,7 @@ maindiv = html.Div(
                 dbc.ModalBody(
                     dcc.Markdown(
                         [
-                            "This tab allows you to <span style='color:#0d6efd;' children=\"load your dataset\" />. Make sure that your dataset is placed in the 'data' folder. After selecting your dataset, click on 'load data'. The graph on the right will show you how many data points per day the dataset contains."
+                            "This tab allows you to <span style='color:#0d6efd;' children=\"load your dataset\" />. Make sure that your dataset is placed in the 'data' folder. After selecting your dataset, click on 'load data'. The graph on the right will show you how many data points per day the dataset contains. <br><br>The 'hours offset' option can be used to shift all timestamps by an offset. This is useful if the data was collected in a different timezone."
                         ],
                         dangerously_allow_html=True,
                     )
@@ -132,7 +132,7 @@ maindiv = html.Div(
                 dbc.ModalBody(
                     dcc.Markdown(
                         [
-                            "This visualization shows the subject's location history, based on the identified significant locations."
+                            "This visualization shows the subject's location history, based on the identified significant locations. You can treat this visualization as a historical calendar for the subject (at least, for their significant location visits). "
                         ],
                         dangerously_allow_html=True,
                     )
@@ -149,7 +149,12 @@ maindiv = html.Div(
                     dbc.ModalTitle("Explanation: Predicting"), close_button=True
                 ),
                 dbc.ModalBody(
-                    dcc.Markdown(["Predicting bla bla."], dangerously_allow_html=True)
+                    dcc.Markdown(
+                        [
+                            "This section allows you predict the future visits to the subject's significant locations. First, select the training data. This data is fed to a Machine Learning model, which tries to learn the relationships between the temporal features and the visited locations. After running the ML model, the predictions are shown in the visualization on the right. <br><br>The visualization allows you to click on each data point (i.e., 10-minute window) to see the probabilities for each significant location. <br><br><b>Note:</b> the model predicts your future locations, treating each prediction independently without considering the physical distance between consecutive locations. This means that in the predictions, you might see consecutive predictions that are physically not possible, while separately (isolated from other predictions) they are possible. This is intended behavior. "
+                        ],
+                        dangerously_allow_html=True,
+                    )
                 ),
             ],
             id="modal-predicting",
