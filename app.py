@@ -782,7 +782,7 @@ def show_predictability(_, data, features):
     df = DT.add_temporal_features(df, features)
 
     fig = DataPredictability(
-        df, features, predictability_graph_rolling_window_size
+        df, features, outputs_folder_name, predictability_graph_rolling_window_size
     ).run()
     add_log_message("Done with predictability graph")
 

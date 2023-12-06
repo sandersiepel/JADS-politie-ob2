@@ -522,10 +522,11 @@ class EDA():
 
 
 class DataPredictability():
-    def __init__(self, df: pd.DataFrame, features:list, rolling_window_size=10):
+    def __init__(self, df: pd.DataFrame, features:list, outputs_folder_name:str, rolling_window_size=10):
         self.df = df # Df should contain the columns: timestamp, location, and the temporal features. Basically, this is the df after loading the resampled 10-min block dataset + the temp features.
         self.rolling_window_size = rolling_window_size # TODO: add documentation for this parameter.
         self.features = features
+        self.outputs_folder_name = outputs_folder_name
 
     def run(self):
         data = self.make_dataset()
@@ -596,10 +597,22 @@ class DataPredictability():
                 name="Predictability"
             ))
 
+        average_score = df_plot['Score'].mean()
+
+        data.append(
+            go.Scatter(
+            x=(df_plot['Time'].min(), df_plot['Time'].max()),
+            y=(average_score, average_score),
+            mode='lines',
+            name='Average',
+        ))
+
         layout = go.Layout(showlegend=True, xaxis_title="Time", yaxis_title="Predictability", margin=dict(l=0, r=0, t=0, b=0))
         fig = go.Figure(data=data, layout=layout)
 
-        average_score = df_plot['Score'].mean()
-        fig.add_hline(y=average_score, line=dict(color='red', width=2, dash='dash'), name="Average Predictability")
+        # average_score = df_plot['Score'].mean()
+        # fig.add_hline(y=average_score, line=dict(color='red', width=2, dash='dash'), name="Average Predictability")
+
+        fig.write_html(f"output/{self.outputs_folder_name}/predictability_graph.html") 
 
         return fig
