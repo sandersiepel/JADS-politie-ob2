@@ -307,11 +307,8 @@ class HeatmapVisualizer:
 
 class HeatmapVisualizerV2:
     def __init__(self, begin_day: str, end_day: str, df: pd.DataFrame, outputs_folder_name:str) -> None:
-        """TODO: add docstring!
- 
-        df is a pd.DataFrame with "timestamp" column (10-minute intervals) and "location" column (string labels of locations).
-
-        """
+        
+        
         # First we make sure to validate the user input.
         self.outputs_folder_name = outputs_folder_name
 
@@ -416,95 +413,96 @@ class HeatmapVisualizerV2:
         return self.fig
 
 
-class ModelPerformanceVisualizer():
-    def __init__(self, scores:dict, outputs_folder_name:str) -> None:
-        self.outputs_folder_name = outputs_folder_name
+# class ModelPerformanceVisualizer():
+#     def __init__(self, scores:dict, outputs_folder_name:str) -> None:
+#         self.outputs_folder_name = outputs_folder_name
 
-        if isinstance(scores, dict):
-            self.scores = scores
-        else:   
-            with open(f"output/{self.outputs_folder_name}/model_performances.pkl", 'rb') as f:
-                self.scores = pickle.load(f)
+#         if isinstance(scores, dict):
+#             self.scores = scores
+#         else:   
+#             with open(f"output/{self.outputs_folder_name}/model_performances.pkl", 'rb') as f:
+#                 self.scores = pickle.load(f)
 
-        # Make a heatmap with mean/median scores of each combination of number of training days and horizon days. 
-        self.heatmap()
+#         # Make a heatmap with mean/median scores of each combination of number of training days and horizon days. 
+#         self.heatmap()
 
-        # Make a line graph with the performance of the models for each number of days predicting into the future. 
-        self.accuracy_horizons()
+#         # Make a line graph with the performance of the models for each number of days predicting into the future. 
+#         self.accuracy_horizons()
 
-        # Make a line graph with the performance of the models for each number of training days.
-        self.accuracy_per_training_days()
+#         # Make a line graph with the performance of the models for each number of training days.
+#         self.accuracy_per_training_days()
 
-    def accuracy_horizons(self) -> None:
-        new_scores = {}
-        for k, _ in self.scores.items():
-            # key (k) is "number of training days"
-            for x, y in self.scores[k].items():
-                    h = x.split("_")[-1]
-                    if not h in new_scores:
-                        new_scores[h] = []
+#     def accuracy_horizons(self) -> None:
+#         new_scores = {}
+#         for k, _ in self.scores.items():
+#             # key (k) is "number of training days"
+#             for x, y in self.scores[k].items():
+#                     h = x.split("_")[-1]
+#                     if not h in new_scores:
+#                         new_scores[h] = []
 
-                    new_scores[h].extend(y)
+#                     new_scores[h].extend(y)
 
-        means = [np.mean(v) for _, v in new_scores.items()]
+#         means = [np.mean(v) for _, v in new_scores.items()]
 
-        # Plot results in a line graph
-        fig, ax = plt.subplots(figsize=(6, 4))
-        ax.plot(means)
-        ax.set_title("Model performance per number of days into the future")
-        ax.set_xlabel("Number of days into the future")
-        ax.set_ylabel("Model performance (accuracy)")
-        fig.savefig(f"output/{self.outputs_folder_name}/model_performance_per_horizon.png", dpi=600)
-        plt.clf()
+#         # Plot results in a line graph
+#         fig, ax = plt.subplots(figsize=(6, 4))
+#         ax.plot(means)
+#         ax.set_title("Model performance per number of days into the future")
+#         ax.set_xlabel("Number of days into the future")
+#         ax.set_ylabel("Model performance (accuracy)")
+#         fig.savefig(f"output/{self.outputs_folder_name}/model_performance_per_horizon.png", dpi=600)
+#         plt.clf()
 
-    def accuracy_per_training_days(self) -> None:
-        means = []
-        for _, v in self.scores.items():
-            data = []
-            for _, y in v.items():
-                data.extend(y)
+#     def accuracy_per_training_days(self) -> None:
+#         means = []
+#         for _, v in self.scores.items():
+#             data = []
+#             for _, y in v.items():
+#                 data.extend(y)
 
-            means.append(np.mean(data))
+#             means.append(np.mean(data))
 
-        fig, ax = plt.subplots(figsize=(6, 4))
-        ax.plot(means)
-        ax.set_title("Model performance per number of days used for training")
-        ax.set_xlabel("Number of days used for training")
-        ax.set_ylabel("Model performance (accuracy)")
-        fig.savefig(f"output/{self.outputs_folder_name}/model_performance_per_training_days.png", dpi=600)
-        plt.clf()
+#         fig, ax = plt.subplots(figsize=(6, 4))
+#         ax.plot(means)
+#         ax.set_title("Model performance per number of days used for training")
+#         ax.set_xlabel("Number of days used for training")
+#         ax.set_ylabel("Model performance (accuracy)")
+#         fig.savefig(f"output/{self.outputs_folder_name}/model_performance_per_training_days.png", dpi=600)
+#         plt.clf()
 
-    def heatmap(self) -> None:
-        def prepare_data(self) -> None:
-            # Prepare data for the heatmap
-            heatmap_data = []
+#     def heatmap(self) -> None:
+#         def prepare_data(self) -> None:
+#             # Prepare data for the heatmap
+#             heatmap_data = []
 
-            for training_size, forecast_scores in self.scores.items():
-                training_days = int(training_size.split("_")[-1])
-                avg_values = [np.mean(score_list) for score_list in forecast_scores.values()]
-                heatmap_data.append([training_days, *avg_values])
+#             for training_size, forecast_scores in self.scores.items():
+#                 training_days = int(training_size.split("_")[-1])
+#                 avg_values = [np.mean(score_list) for score_list in forecast_scores.values()]
+#                 heatmap_data.append([training_days, *avg_values])
 
-            # Create a DataFrame from the data
-            df = pd.DataFrame(heatmap_data, columns=["Training Days", *forecast_scores.keys()])
-            self.df = df.set_index('Training Days')
-            self.df.index.names = ['Number of days used for training']
-            self.df.columns = self.df.columns.str.split('_').str[-1]
+#             # Create a DataFrame from the data
+#             df = pd.DataFrame(heatmap_data, columns=["Training Days", *forecast_scores.keys()])
+#             self.df = df.set_index('Training Days')
+#             self.df.index.names = ['Number of days used for training']
+#             self.df.columns = self.df.columns.str.split('_').str[-1]
 
-        def make_heatmap(self) -> None:
-            self.df = self.df.iloc[::-1,::-1].T # Reverse both rows and columns, and then transpose (to swap axes)
-            fig, ax = plt.subplots(figsize=(10,5))
-            sns.heatmap(self.df, cmap="Blues") #  xticklabels = 10, yticklabels=7
-            plt.ylabel('Number of days into the future')
-            plt.xticks(rotation=0) 
-            plt.savefig(f"output/{self.outputs_folder_name}/model_performance_heatmap.png")
-            # plt.show()
-            plt.clf() # Clear figure command to avoid stacking axes in consecutive plots.
+#         def make_heatmap(self) -> None:
+#             self.df = self.df.iloc[::-1,::-1].T # Reverse both rows and columns, and then transpose (to swap axes)
+#             fig, ax = plt.subplots(figsize=(10,5))
+#             sns.heatmap(self.df, cmap="Blues") #  xticklabels = 10, yticklabels=7
+#             plt.ylabel('Number of days into the future')
+#             plt.xticks(rotation=0) 
+#             plt.savefig(f"output/{self.outputs_folder_name}/model_performance_heatmap.png")
+#             # plt.show()
+#             plt.clf() # Clear figure command to avoid stacking axes in consecutive plots.
 
-        prepare_data(self)
-        make_heatmap(self)
+#         prepare_data(self)
+#         make_heatmap(self)
 
 
 class EDA():
+    """ Small EDA function that creates a plotly histogram that shows the number of data points per day. """
     def __init__(self, data:pd.DataFrame, outputs_folder_name:str) -> None:
         self.outputs_folder_name = outputs_folder_name
         self.data = data # Here, data is the raw (meaning: timestamps and coordinates) dataset. 
@@ -522,23 +520,58 @@ class EDA():
 
 
 class DataPredictability():
+    """ 
+    This class calculates the subject's predictability by presenting a predictability graph. More explanation about this can be found in the report. 
+    """
     def __init__(self, df: pd.DataFrame, features:list, outputs_folder_name:str, rolling_window_size=10):
+        """
+        Init func for the DataPredictability class.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            input dataframe that contains columns: timestamp, location, and the temporal features. This dataframe is the output after running the DataTransformer.add_temporal_features function.
+        features : list
+            a list of the temporal features that are used
+        outputs_folder_name : str
+            name of the folder that is used to store the results
+        rolling_window_size : int
+            parameter for the calculation of the predictability graph, default = 10. 
+
+        Returns
+        -------
+
+        """
+
         self.df = df # Df should contain the columns: timestamp, location, and the temporal features. Basically, this is the df after loading the resampled 10-min block dataset + the temp features.
         self.rolling_window_size = rolling_window_size # TODO: add documentation for this parameter.
         self.features = features
         self.outputs_folder_name = outputs_folder_name
 
     def run(self):
+        # Main func to run the graph
         data = self.make_dataset()
         return self.make_graph(data, savgol_filter=True)
 
     def make_dataset(self) -> list:
+        """
+        This function creates the dataset for making the predictability graph. The logic of calculation can be found in the report.
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        final_res
+            defaultdict where keys are datetime.dates and values are the predictability values for that day
+        """
         from collections import defaultdict
 
         res, final_res = defaultdict(dict), defaultdict(dict)
         this_day_values = []
 
         for _, row in self.df.iterrows():
+            # m is called "the moment", which refers to a unique combination of the temporal features
             m = tuple(row[feature] for feature in self.features if feature in row)
 
             if not 'data' in res[m]: res[m]['data'] = {}
@@ -556,7 +589,8 @@ class DataPredictability():
             else:
                 res[m]['data'][row['location']] = 1
 
-            # If we now exceeded THRESHOLD, remove the last entry (like a rolling window approach)
+            # If we now exceeded the rolling_window_size, remove the last entry (like a rolling window approach).
+            # This rolling window is applied so that older data does not influence recent predictability values. 
             if sum(res[m]['data'].values()) >= self.rolling_window_size:
                 # Minus one for last entry
                 res[m]['data'][res[m]['meta']['last_location']] -= 1
@@ -571,6 +605,22 @@ class DataPredictability():
         return final_res
     
     def make_graph(self, data, savgol_filter=True):
+        """
+        Function that makes the actual graph
+
+        Parameters
+        ----------
+        data : defaultdict
+            defaultdict where keys are datetime.dates and values are the predictability values for that day
+        savgol_filter : bool
+            boolean to enable/disable the savgol filter, which smoothens the graph
+
+        Returns
+        -------
+        fig
+            the graph figure (in Plotly)
+
+        """
         import plotly.graph_objects as go
         from scipy import signal
 

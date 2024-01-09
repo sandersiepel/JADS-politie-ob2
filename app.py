@@ -23,7 +23,7 @@ end_date = "2023-12-31"  # End date is INclusive!
 fraction = 1
 # For the model performance class we need to specify the number of training days (range) and testing horizon (also in days)
 outputs_folder_name = (
-    f"kleinedemo"  # All of the outputs will be placed in output/outputs_folder_name
+    f"demo"  # All of the outputs will be placed in output/outputs_folder_name
 )
 predictability_graph_rolling_window_size = 5  # See docstring of Visualizations.DataPredictability for more info on this parameter.
 features_list = {
@@ -781,6 +781,7 @@ def show_predictability(_, data, features):
 
     df = DT.add_temporal_features(df, features)
 
+    # Create instance of the DataPredictability class, which will return a fig that contains the predictability graph.
     fig = DataPredictability(
         df, features, outputs_folder_name, predictability_graph_rolling_window_size
     ).run()

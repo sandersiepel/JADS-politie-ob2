@@ -5,6 +5,37 @@ from Visualisations import EDA
 import os
 
 def load_data(data_source: str, begin_date: str, end_date: str, fraction: float, hours_offset: int, outputs_folder_name:str, verbose: bool = True, perform_eda: bool = True) -> pd.DataFrame:
+    """
+    Main function for loading the spatio-temporal dataset. This function also optionally performs simple EDA. 
+
+    Parameters
+    ----------
+    data_source : str
+        name of the dataset that is being loaded
+    begin_date : str
+        string of the date that we use to filter the data
+    end_date : str
+        string of the date that we use to filter the data
+    fraction : int
+        allows the user to sample the dataset with a fraction to decrease the size of the dataset. Used to combat memory issues
+    hours_offset : int
+        number of hours to offset all the timestamps in the dataset
+    outputs_folder_name : str
+        name of the folder that is used/created to store all outputs
+    verbose : bool
+        boolean for enabling/disabling print settings
+    perform_eda : bool
+        boolean for enabling/disabling EDA. Default is True. Should be true when used in the Dash app (as it loads an EDA graph)
+
+    Returns
+    -------
+    df : pd.DataFrame
+        dataframe of the raw data that was loaded
+    e.fig : fig
+        plotly figure of the EDA graph (nr datapoints per day)
+
+    """
+    
     # Create output folder, if necessary.
     os.makedirs(f"output/{outputs_folder_name}", exist_ok=True)
     
@@ -36,7 +67,6 @@ def load_data(data_source: str, begin_date: str, end_date: str, fraction: float,
         )
 
     if perform_eda:
-        # Perform EDA
         if verbose:
             print(f"Message (data loader): Performing EDA, saving plots at output/{outputs_folder_name}")
 
@@ -46,7 +76,27 @@ def load_data(data_source: str, begin_date: str, end_date: str, fraction: float,
     return df, e.fig
 
 
-def filter_data(df: bool, begin_date: str, end_date: str, fraction: float) -> pd.DataFrame:
+def filter_data(df: pd.DataFrame, begin_date: str, end_date: str, fraction: float) -> pd.DataFrame:
+    """
+    This function is used by the load_data function to filter the data between begin and end date, and optionally also downsample it.
+    
+    Parameters
+    ----------
+    df : pd.DataFrame
+        input dataframe
+    begin_date : str
+        begin date for filtering
+    end_date : str
+        end date for filtering
+    fraction : float
+        fraction with which to downsample the dataset (for memory issues)
+    
+    Returns
+    -------
+    pd.dataframe that is filterd between two dates and optinally downsampled
+
+    """
+
     # First, set the timestamp column as index.
     df = df.set_index('timestamp')
 
@@ -62,6 +112,7 @@ def filter_data(df: bool, begin_date: str, end_date: str, fraction: float) -> pd
 
 
 def downsample(df: bool, fraction: float) -> pd.DataFrame:
+    """ Small function to downsample a dataset by using a fraction value. """
     # If you want to downsample the dataframe (because of memory issues), use this function.
     # A fraction of 0.5 will result in a dataframe half the size.
     if fraction < 1:
