@@ -17,8 +17,8 @@ import plotly.graph_objs as go
 
 # Initialize parameters.
 # begin_date and end_date are used to filter the data for your analysis.
-begin_date = "2023-01-01"
-end_date = "2023-12-31"  # End date is INclusive!
+begin_date = "2023-05-01"
+end_date = "2024-01-31"  # End date is INclusive!
 # FRACTION is used to make the DataFrame smaller. Final df = df * fraction. This solves memory issues, but a value of 1 is preferred.
 fraction = 1
 # For the model performance class we need to specify the number of training days (range) and testing horizon (also in days)
